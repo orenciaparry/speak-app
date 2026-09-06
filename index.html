@@ -195,8 +195,8 @@
     <div id="history"></div>
     <p style="margin-top:8px">Daily target: <input id="target-in" type="number" min="5" max="200" style="width:70px;font:inherit;font-weight:800;padding:4px 8px;border-radius:8px;border:2px solid #e2d5bf"> clear S sounds a day. Only "Yes" counts towards it.</p>
     <h3>Voice</h3>
-    <p>The reading voice comes from this device's own text-to-speech. Pick one that sounds right and test it. British female voices are chosen automatically when the device has one.</p>
-    <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="voice-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf;max-width:100%"></select><button class="ghost small" id="voice-test">🔊 Test voice</button><span id="voice-now" style="font-size:13px;color:#6b6478"></span></p>
+    <p>The reading voice comes from this device's own text-to-speech. Pick one that sounds right, choose a speed, and test it. British female voices are chosen automatically when the device has one, and iPhones and iPads start on Slow because their voices run faster.</p>
+    <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="voice-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf;max-width:100%"></select><select id="rate-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf"><option value=".6">Slowest</option><option value=".72">Slow</option><option value=".85">Medium</option><option value="1">Normal</option></select><button class="ghost small" id="voice-test">🔊 Test voice</button><span id="voice-now" style="font-size:13px;color:#6b6478"></span></p>
     <h3>Photos on this device</h3>
     <p>Photos are kept on this tablet only and never uploaded. Choose one for each slot, or import the photo pack file in one go.</p>
     <div id="photo-slots"></div>
@@ -434,13 +434,28 @@ function renderVoices(){
   sel.innerHTML = '<option value="">Automatic</option>' + vs.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}"${VOICE_PICK===v.name?' selected':''}>${v.name} (${v.lang})</option>`).join('');
   $('#voice-now').textContent = cur ? `Using: ${cur.name}` : 'No English voices found on this device.';
 }
-function say(text, {force=false, rate=.92, onWord=null}={}){
-  if ((!readAloud && !force) || !('speechSynthesis' in window)) return Promise.resolve();
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=rate; u.pitch=1.15; const v = pickVoice(); if (v) u.voice = v;
-  if (onWord) u.onboundary = e => { if (e.name==='word' || e.charLength) onWord(e.charIndex); };
+// Reading speed. Apple voices run faster than the others at the same setting, so they start slower.
+const IS_APPLE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+let RATE = IS_APPLE ? .72 : .9; try { RATE = parseFloat(localStorage.getItem('ecs-rate')) || RATE; } catch(e){}
+function speakRaw(text, {speed=1, onWord=null, offset=0}={}){
+  if (!/[a-z0-9]/i.test(text)) return Promise.resolve();
+  const u = new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=RATE*speed; u.pitch=1.1; const v = pickVoice(); if (v) u.voice = v;
+  if (onWord) u.onboundary = e => { if (e.name==='word' || e.charLength) onWord(e.charIndex + offset); };
   return new Promise(r => { u.onend = r; u.onerror = r; speechSynthesis.speak(u); setTimeout(r, 15000); });
 }
+// "sss" in a caption is played as a real hiss, never read out as letters
+async function say(text, {force=false, speed=1, onWord=null}={}){
+  if ((!readAloud && !force) || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel(); const myTok = ++sayToken;
+  let offset = 0;
+  for (const part of text.split(/([sS]{3,})/)){
+    if (myTok!==sayToken) return;
+    if (/^[sS]{3,}$/.test(part)) await playFricative('s', Math.min(1.6, .35*part.length));
+    else await speakRaw(part, {speed, onWord, offset});
+    offset += part.length;
+  }
+}
+let sayToken = 0;
 
 /* ---------------- tap sequence for stops ---------------- */
 let seqToken = 0;
@@ -464,9 +479,9 @@ async function longT(){
 // a word spoken with the tongue moving into and out of the S position at the right moment
 async function sayWord(w, pos){
   const tok = ++seqToken; const spoken = w.replace('St. Kitts','Saint Kitts');
-  if (pos==='start' || pos==='blend'){ setTongue('s', .3); setAir('s'); await playFricative('s', .5); if (tok!==seqToken) return; setTongue('rest', .4); setAir(null); await say(spoken, {force:true, rate:.8}); }
-  else if (pos==='end'){ setTongue('rest', .3); setAir(null); await say(spoken, {force:true, rate:.8}); if (tok!==seqToken) return; setTongue('s', .3); setAir('s'); await playFricative('s', .7); }
-  else { setTongue('rest', .3); setAir(null); const p = say(spoken, {force:true, rate:.75}); await wait(250); if (tok!==seqToken) return; setTongue('s', .25); setAir('s'); await wait(350); setTongue('rest', .3); setAir(null); await p; }
+  if (pos==='start' || pos==='blend'){ setTongue('s', .3); setAir('s'); await playFricative('s', .5); if (tok!==seqToken) return; setTongue('rest', .4); setAir(null); await say(spoken, {force:true, speed:.9}); }
+  else if (pos==='end'){ setTongue('rest', .3); setAir(null); await say(spoken, {force:true, speed:.9}); if (tok!==seqToken) return; setTongue('s', .3); setAir('s'); await playFricative('s', .7); }
+  else { setTongue('rest', .3); setAir(null); const p = say(spoken, {force:true, speed:.85}); await wait(250); if (tok!==seqToken) return; setTongue('s', .25); setAir('s'); await wait(350); setTongue('rest', .3); setAir(null); await p; }
 }
 
 /* ---------------- camera + cutaway ---------------- */
@@ -576,7 +591,7 @@ function renderBody(){
         const eb = $('#earbtn'); eb.hidden = false; eb.textContent = '👂 I heard an S!';
         eb.onclick = () => { heard++; eb.textContent = `👂 ${heard} S${heard===1?'':'s'}!`; };
         setTongue('rest', .3); setAir(null);
-        await say(plain.replace('St. Kitts','Saint Kitts'), {force:true, rate:.82});
+        await say(plain.replace('St. Kitts','Saint Kitts'), {force:true, speed:.9});
         if (tok!==seqToken) return;
         txt.classList.remove('hid'); eb.hidden = true;
         $('#caption').textContent = n===heard ? `Yes! ${n} S word${n===1?'':'s'}. Good ears!` : `There were ${n} S word${n===1?'':'s'}. You heard ${heard}. Look for the orange ones.`;
@@ -587,7 +602,7 @@ function renderBody(){
         const spokenSrc = S.t.replace('St. Kitts','Saint Kitts'); const ranges = []; let idx = 0;
         for (const piece of spokenSrc.split(/(\[[^\]]+\])/)){ if (piece.startsWith('[')){ ranges.push([idx, idx+piece.length-2]); idx += piece.length-2; } else idx += piece.length; }
         setTongue('rest', .3); setAir(null);
-        await say(spokenSrc.replace(/[\[\]]/g, ''), {force:true, rate:.7, onWord: ci => {
+        await say(spokenSrc.replace(/[\[\]]/g, ''), {force:true, speed:.78, onWord: ci => {
           if (tok!==seqToken) return;
           if (ranges.some(([a,b]) => ci>=a && ci<b)){ setTongue('s', .12); setAir('s'); setTimeout(() => { if (tok===seqToken){ setTongue('rest', .25); setAir(null); } }, 420); }
         }});
@@ -683,7 +698,7 @@ const LESSONS = {
     good:'✅ Tip taps the ridge', bad:'❌ Tongue between teeth',
     onGood: () => { showLabels(['voice']); taps('d', 2); },
     onBad:  () => { seqToken++; voicedGoal = 1; setTongue('th', .5); setAir('th'); showLabels([]); playVoicedTh(1.1).then(() => voicedGoal = 0); },
-    words: [['d', () => taps('d', 1)], ...['dog','duck','door','dinosaur'].map(w => [w, async () => { await taps('d', 1); await say(w, {force:true, rate:.8}); }])],
+    words: [['d', () => taps('d', 1)], ...['dog','duck','door','dinosaur'].map(w => [w, async () => { await taps('d', 1); await say(w, {force:true, speed:.9}); }])],
     grown: `<h3>The /d/ lesson</h3><ul>
       <li><b>Target /d/</b>: a voiced alveolar stop. The tongue tip presses against the alveolar ridge, pressure builds, then the tip drops and the air is released with a small burst. The vocal folds vibrate (the purple “voice buzz”).</li>
       <li><b>Error shown</b>: tongue tip between or against the front teeth. Other common errors are backing (/d/ like /g/) and nasalising (/d/ like /n/). Tell us which one you hear.</li></ul>`,
@@ -703,7 +718,7 @@ const LESSONS = {
     good:'✅ Back of tongue lifts', bad:'❌ Tip taps the front',
     onGood: () => { showLabels(['voice']); taps('g', 2); },
     onBad:  () => { showLabels([]); taps('d', 2); },
-    words: [['g', () => taps('g', 1)], ...['go','goat','gate','game'].map(w => [w, async () => { await taps('g', 1); await say(w, {force:true, rate:.8}); }])],
+    words: [['g', () => taps('g', 1)], ...['go','goat','gate','game'].map(w => [w, async () => { await taps('g', 1); await say(w, {force:true, speed:.9}); }])],
     grown: `<h3>The /g/ lesson</h3><ul>
       <li><b>Target /g/</b>: a voiced velar stop. Tongue tip stays down behind the lower front teeth; the back of the tongue lifts to seal against the soft palate, pressure builds, then the back drops. Voiced.</li>
       <li><b>Error shown</b>: fronting, where the tip taps the ridge instead, so “g” comes out as “d”.</li></ul>`,
@@ -773,7 +788,7 @@ $('#cmp-good').onclick = () => { audio(); seqToken++; $('#badge').textContent='�
 $('#cmp-bad').onclick  = () => { audio(); seqToken++; $('#badge').textContent='❌'; $('#badge').classList.add('show'); lesson.onBad(); };
 $('#voice-btn').onclick = () => { readAloud = !readAloud; if (!readAloud) speechSynthesis.cancel(); $('#voice-btn').textContent = '🔊 Read aloud: ' + (readAloud?'on':'off'); };
 { let holdT = null; const gb = $('#grown-btn');
-  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); renderVoices(); $('#grown').classList.add('open'); }, 1500); };
+  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); renderVoices(); { const sel = $('#rate-sel'); let best = '1', d = 9; for (const o of sel.options){ const diff = Math.abs(parseFloat(o.value)-RATE); if (diff < d){ d = diff; best = o.value; } } sel.value = best; } $('#grown').classList.add('open'); }, 1500); };
   const stop = () => { clearTimeout(holdT); gb.textContent = 'ℹ️ Grown-ups (hold)'; };
   gb.addEventListener('pointerdown', start); gb.addEventListener('pointerup', stop); gb.addEventListener('pointerleave', stop); gb.addEventListener('pointercancel', stop); }
 $('#pack-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const pack = JSON.parse(await f.text()); let n = 0; for (const k in pack){ if (typeof pack[k]==='string' && pack[k].startsWith('data:image')){ STORED[k] = pack[k]; n++; } } if (savePhotos()){ renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); alert(n + ' photos added.'); } } catch(err){ alert('That file is not a photo pack.'); } };
@@ -786,6 +801,7 @@ document.querySelectorAll('.lesson').forEach(el => el.onclick = () => { audio();
 if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = renderVoices;
 $('#voice-sel').onchange = () => { VOICE_PICK = $('#voice-sel').value; try { localStorage.setItem('ecs-voice', VOICE_PICK); } catch(e){} renderVoices(); };
 $('#voice-test').onclick = () => { audio(); say("Hi Elijah! Let's do the S sound. Sssss. Sia sees the sun.", {force:true}); };
+$('#rate-sel').onchange = () => { RATE = parseFloat($('#rate-sel').value); try { localStorage.setItem('ecs-rate', String(RATE)); } catch(e){} };
 
 /* ---------------- loop ---------------- */
 let last = performance.now(), idle = 0;
