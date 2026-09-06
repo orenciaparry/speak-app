@@ -194,6 +194,9 @@
     <h3>Progress, last 7 days</h3>
     <div id="history"></div>
     <p style="margin-top:8px">Daily target: <input id="target-in" type="number" min="5" max="200" style="width:70px;font:inherit;font-weight:800;padding:4px 8px;border-radius:8px;border:2px solid #e2d5bf"> clear S sounds a day. Only "Yes" counts towards it.</p>
+    <h3>Voice</h3>
+    <p>The reading voice comes from this device's own text-to-speech. Pick one that sounds right and test it. British female voices are chosen automatically when the device has one.</p>
+    <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="voice-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf;max-width:100%"></select><button class="ghost small" id="voice-test">🔊 Test voice</button><span id="voice-now" style="font-size:13px;color:#6b6478"></span></p>
     <h3>Photos on this device</h3>
     <p>Photos are kept on this tablet only and never uploaded. Choose one for each slot, or import the photo pack file in one go.</p>
     <div id="photo-slots"></div>
@@ -414,7 +417,23 @@ function playVoicedTh(dur=.9){
   return wait(dur*1000);
 }
 let readAloud = true;
-function pickVoice(){ const vs = speechSynthesis.getVoices(); return vs.find(v=>/en[-_]GB/i.test(v.lang) && /female|Libby|Sonia|Hazel|Susan|Kate/i.test(v.name)) || vs.find(v=>/en[-_]GB/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null; }
+// Voice choice: a saved pick first, then a British female voice by name (Google, Microsoft, Apple and Amazon's Ivona engines all name theirs), then any English female, then any English
+const FEMALE = /female|Libby|Sonia|Hazel|Susan|Kate|Amy|Emma|Salli|Joanna|Kimberly|Ivy|Kendra|Nicole|Raveena|Samantha|Karen|Moira|Fiona|Serena|Tessa|Zira|Aria|Jenny|Ava|Allison|Susan|Catherine/i;
+let VOICE_PICK = ''; try { VOICE_PICK = localStorage.getItem('ecs-voice') || ''; } catch(e){}
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  return (VOICE_PICK && vs.find(v => v.name===VOICE_PICK))
+    || vs.find(v => /en[-_]GB/i.test(v.lang) && FEMALE.test(v.name))
+    || vs.find(v => /^en/i.test(v.lang) && FEMALE.test(v.name))
+    || vs.find(v => /en[-_]GB/i.test(v.lang))
+    || vs.find(v => /^en/i.test(v.lang)) || null;
+}
+function renderVoices(){
+  const sel = $('#voice-sel'); if (!sel || !('speechSynthesis' in window)) return;
+  const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); const cur = pickVoice();
+  sel.innerHTML = '<option value="">Automatic</option>' + vs.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}"${VOICE_PICK===v.name?' selected':''}>${v.name} (${v.lang})</option>`).join('');
+  $('#voice-now').textContent = cur ? `Using: ${cur.name}` : 'No English voices found on this device.';
+}
 function say(text, {force=false, rate=.92, onWord=null}={}){
   if ((!readAloud && !force) || !('speechSynthesis' in window)) return Promise.resolve();
   speechSynthesis.cancel();
@@ -754,7 +773,7 @@ $('#cmp-good').onclick = () => { audio(); seqToken++; $('#badge').textContent='�
 $('#cmp-bad').onclick  = () => { audio(); seqToken++; $('#badge').textContent='❌'; $('#badge').classList.add('show'); lesson.onBad(); };
 $('#voice-btn').onclick = () => { readAloud = !readAloud; if (!readAloud) speechSynthesis.cancel(); $('#voice-btn').textContent = '🔊 Read aloud: ' + (readAloud?'on':'off'); };
 { let holdT = null; const gb = $('#grown-btn');
-  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); $('#grown').classList.add('open'); }, 1500); };
+  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); renderVoices(); $('#grown').classList.add('open'); }, 1500); };
   const stop = () => { clearTimeout(holdT); gb.textContent = 'ℹ️ Grown-ups (hold)'; };
   gb.addEventListener('pointerdown', start); gb.addEventListener('pointerup', stop); gb.addEventListener('pointerleave', stop); gb.addEventListener('pointercancel', stop); }
 $('#pack-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const pack = JSON.parse(await f.text()); let n = 0; for (const k in pack){ if (typeof pack[k]==='string' && pack[k].startsWith('data:image')){ STORED[k] = pack[k]; n++; } } if (savePhotos()){ renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); alert(n + ' photos added.'); } } catch(err){ alert('That file is not a photo pack.'); } };
@@ -764,7 +783,9 @@ $('#grown-close').onclick = () => $('#grown').classList.remove('open');
 $('#grown').addEventListener('click', e => { if (e.target.id==='grown') $('#grown').classList.remove('open'); });
 $('#home-btn').onclick = () => { stopPlaying(); seqToken++; voicedGoal = 0; $('#ppanel').hidden = true; $('#earbtn').hidden = true; $('#home').hidden = false; renderTally(); try { history.replaceState(null, '', location.pathname); } catch(e) {} };
 document.querySelectorAll('.lesson').forEach(el => el.onclick = () => { audio(); loadLesson(el.dataset.sound); });
-if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = renderVoices;
+$('#voice-sel').onchange = () => { VOICE_PICK = $('#voice-sel').value; try { localStorage.setItem('ecs-voice', VOICE_PICK); } catch(e){} renderVoices(); };
+$('#voice-test').onclick = () => { audio(); say("Hi Elijah! Let's do the S sound. Sssss. Sia sees the sun.", {force:true}); };
 
 /* ---------------- loop ---------------- */
 let last = performance.now(), idle = 0;
