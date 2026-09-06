@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The S Sound Session</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+  :root{
+    --paper:#f7f5f0; --paper-2:#ece9e1; --card:#ffffff; --ink:#1e2431; --ink-2:#4d5566; --muted:#7c8393; --line:#dcd7cc;
+    --snake:#2f9e5b; --snake-soft:#dff3e6; --thumb:#c94141; --thumb-soft:#f8e1e1; --nearly:#d99a2b; --nearly-soft:#fbeed2;
+    --accent:#d94f6b; --teal:#2a8c8c; --teal-soft:#dcefef;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){ --paper:#171a21; --paper-2:#1f2330; --card:#20242f; --ink:#eef0f4; --ink-2:#c3c8d3; --muted:#8d94a5; --line:#323847;
+      --snake:#4cc97c; --snake-soft:#1d3a2a; --thumb:#ee6b6b; --thumb-soft:#3d2222; --nearly:#e6b04d; --nearly-soft:#3d3221; --accent:#ef6f88; --teal:#4fb3b3; --teal-soft:#1e3535; }
+  }
+  :root[data-theme="dark"]{ --paper:#171a21; --paper-2:#1f2330; --card:#20242f; --ink:#eef0f4; --ink-2:#c3c8d3; --muted:#8d94a5; --line:#323847;
+      --snake:#4cc97c; --snake-soft:#1d3a2a; --thumb:#ee6b6b; --thumb-soft:#3d2222; --nearly:#e6b04d; --nearly-soft:#3d3221; --accent:#ef6f88; --teal:#4fb3b3; --teal-soft:#1e3535; }
+
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;font-size:17px;line-height:1.55}
+  h1,h2,h3,h4{font-family:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;text-wrap:balance;line-height:1.1;margin:0}
+  h1{font-size:clamp(34px,5vw,58px);font-weight:800;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,3vw,32px);font-weight:800;letter-spacing:-.01em}
+  h3{font-size:20px;font-weight:800}
+  h4{font-size:16px;font-weight:600;color:var(--ink-2)}
+  p{margin:0}
+  .wrap{max-width:980px;margin:0 auto;padding:40px 22px 90px}
+  .eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .lede{font-size:19px;color:var(--ink-2);max-width:64ch;margin-top:12px}
+  .facts{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+  .facts span{font-family:"JetBrains Mono",monospace;font-size:12.5px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;color:var(--ink-2)}
+  section{margin-top:56px}
+  section>h2{margin-bottom:6px}
+  .sub{color:var(--ink-2);max-width:66ch;margin-bottom:18px}
+  ul{margin:8px 0 0;padding-left:20px} li{margin:5px 0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px 22px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr} }
+
+  /* cue card */
+  .cue{background:var(--snake-soft);border:2px solid var(--snake);border-radius:18px;padding:18px 22px;display:grid;grid-template-columns:auto 1fr;gap:14px 18px;align-items:center}
+  .cue .big{font-family:"Bricolage Grotesque",sans-serif;font-size:clamp(22px,3.4vw,30px);font-weight:800;color:var(--snake)}
+  .cue ol{margin:0;padding-left:22px;font-size:18px;font-weight:700}
+  .cue ol li{margin:3px 0}
+  .cue ol li small{font-weight:400;color:var(--ink-2)}
+
+  /* timeline */
+  .block{display:grid;grid-template-columns:96px 1fr;gap:0 18px;border-top:1px solid var(--line);padding:18px 0}
+  .block:last-child{border-bottom:1px solid var(--line)}
+  .time{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--muted);padding-top:4px}
+  .time b{display:block;font-size:22px;color:var(--ink);font-weight:600;line-height:1}
+  .block h3{margin-bottom:4px}
+  .block .aim{font-size:14px;color:var(--teal);font-weight:700;margin-bottom:8px}
+  .block p{color:var(--ink-2);max-width:66ch}
+  .say{background:var(--paper-2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 10px 10px 0;margin:10px 0 0;font-style:italic;color:var(--ink)}
+  .say b{font-style:normal;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:2px}
+  .ladder{counter-reset:rung;margin:10px 0 0;padding:0;list-style:none}
+  .ladder li{counter-increment:rung;display:grid;grid-template-columns:28px 1fr;gap:10px;margin:8px 0;color:var(--ink-2)}
+  .ladder li:before{content:counter(rung);font-family:"JetBrains Mono",monospace;font-weight:600;color:var(--card);background:var(--teal);border-radius:50%;width:24px;height:24px;display:grid;place-items:center;font-size:12px;margin-top:2px}
+  .ladder li b{color:var(--ink)}
+  .gate{font-size:13.5px;font-family:"JetBrains Mono",monospace;color:var(--muted);margin-top:8px}
+
+  /* word banks */
+  .bank{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+  .bank .card h4{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .words{display:flex;flex-wrap:wrap;gap:6px}
+  .words i{font-style:normal;background:var(--paper-2);border-radius:8px;padding:4px 9px;font-weight:700;font-size:15px}
+  .words i s{text-decoration:none;color:var(--accent)}
+  .pairs{display:grid;grid-template-columns:1fr auto 1fr;gap:4px 8px;align-items:center;font-weight:700;font-size:15.5px}
+  .pairs .th{color:var(--thumb);text-align:right} .pairs .ss{color:var(--snake)} .pairs em{font-style:normal;color:var(--muted);font-size:12px}
+  .story{font-size:18px;line-height:1.7;max-width:60ch}
+  .story s{text-decoration:none;color:var(--snake);font-weight:700}
+
+  /* tally */
+  .tally{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+  .tally button{font:inherit;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:clamp(18px,3vw,26px);padding:22px 8px;border-radius:16px;border:2px solid transparent;cursor:pointer;color:var(--ink);touch-action:manipulation}
+  .tally button:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+  .tally button:active{transform:translateY(2px)}
+  .tally .ok{background:var(--snake-soft);border-color:var(--snake)} .tally .near{background:var(--nearly-soft);border-color:var(--nearly)} .tally .no{background:var(--thumb-soft);border-color:var(--thumb)}
+  .tally button small{display:block;font-family:"JetBrains Mono",monospace;font-size:28px;font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums}
+  .score{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .score .pct{font-family:"Bricolage Grotesque",sans-serif;font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+  .score .pct span{font-size:16px;color:var(--muted);font-weight:600;margin-left:6px}
+  .meter{height:12px;background:var(--paper-2);border-radius:6px;overflow:hidden;flex:1;min-width:160px;position:relative}
+  .meter i{display:block;height:100%;background:var(--snake);border-radius:6px;width:0;transition:width .3s}
+  .meter:after{content:"";position:absolute;left:80%;top:-3px;bottom:-3px;width:2px;background:var(--ink)}
+  .score button{font:inherit;font-size:14px;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink-2);cursor:pointer}
+  .verdict{margin-top:8px;font-weight:700;color:var(--ink-2)}
+
+  /* ladder table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+  table{border-collapse:collapse;width:100%;font-size:15px}
+  th,td{padding:11px 14px;text-align:left;vertical-align:top;border-top:1px solid var(--line)}
+  thead th{border-top:0;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  td:first-child{font-weight:700;white-space:nowrap}
+  tr.now td{background:var(--teal-soft)}
+  .week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+  @media (max-width:720px){ .week{grid-template-columns:repeat(4,1fr)} }
+  .day{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13.5px;min-height:74px}
+  .day b{display:block;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--muted);letter-spacing:.06em;margin-bottom:3px}
+  .day.off{background:transparent;color:var(--muted)}
+  a{color:var(--teal)}
+  .foot{font-size:14px;color:var(--muted);margin-top:40px;max-width:70ch}
+  @media print{ .tally button{padding:10px} body{font-size:14px} section{margin-top:30px;break-inside:avoid} }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="eyebrow">Home practice · articulation therapy</div>
+  <h1>The S Sound Session</h1>
+  <p class="lede">A 30-minute practice session for Elijah, 7, whose /s/ comes out like "th" because the tongue tip slips between the teeth. It follows the standard articulation ladder therapists use, one rung at a time, and is meant to run <b>alongside</b> his speech therapy, at the level his therapist has set.</p>
+  <div class="facts">
+    <span>30 min · can be split 2 × 15</span><span>target: 80–100 tries</span><span>move up at 80% correct</span><span>4–5 sessions a week</span>
+  </div>
+
+  <section>
+    <h2>The cue card</h2>
+    <p class="sub">Say the same four words every time. The whole session hangs on these, and the app and the games are just ways to rehearse them.</p>
+    <div class="cue">
+      <div class="big">The<br>S<br>sound</div>
+      <ol>
+        <li>Teeth together <small>— gently, like a smile with the teeth closed</small></li>
+        <li>Tongue in <small>— tip rests behind the bottom teeth, or up behind the bumpy ridge if the therapist prefers</small></li>
+        <li>Big smile <small>— lips pulled back, not rounded</small></li>
+        <li>Blow the S <small>— thin cold air down the middle: sssss</small></li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>Before you start</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Gather</h3>
+        <ul>
+                    <li>A wooden coffee stirrer or a lolly stick (the "tongue fence").</li>
+          <li>A drinking straw.</li>
+          <li>The word cards below, or the pictures on the tablet.</li>
+          <li>A counter game: any board game, a jar and 20 marbles, or a tower of blocks. One move per 5 correct tries.</li>
+          <li>The tally counter further down this page.</li>
+          <li>Elijah Can Speak open on the S sound for the "look inside" step.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Ground rules</h3>
+        <ul>
+          <li><b>Model, don't correct.</b> If he says "thun", you say "sun, that's the S sound" and move on. Never say "no" or make him repeat more than twice.</li>
+          <li><b>Praise the tongue, not the child.</b> "Your tongue stayed in!" beats "good boy". Be specific every time.</li>
+          <li><b>Only practise the target level.</b> Do not correct his /s/ in ordinary chat yet. Conversation is the last rung, months away.</li>
+          <li><b>Stop early if he's tired.</b> Ten good minutes beat thirty grumpy ones. Frustration teaches avoidance.</li>
+          <li><b>Tally honestly.</b> "Nearly" counts as not yet. The 80% rule protects him from moving up too soon.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The session, minute by minute</h2>
+    <p class="sub">Timings are a guide. If a block goes well, stay in it and bank more tries. If a block flops, drop back one rung rather than pushing forward.</p>
+
+    <div class="block">
+      <div class="time"><b>0–3</b>warm up</div>
+      <div>
+        <h3>S ears</h3>
+        <div class="aim">Aim: he can hear the difference before he has to make it</div>
+        <p>Sit side by side. You say a word; he shows a wiggly finger if he hears sss and a thumbs up if he hears th. Mix the minimal pairs below. Then swap: he chooses a card and <i>you</i> say it either right or wrong and he catches you. Kids love catching a parent out, and it's the same skill.</p>
+        <div class="say"><b>Say</b>Listen with your S ears. Is this a S word or a thumb word… <i>sun</i>? … <i>thumb</i>? … <i>mouse</i>? … <i>mouth</i>?</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>3–6</b>look</div>
+      <div>
+        <h3>Where does the tongue go?</h3>
+        <div class="aim">Aim: he can point to the ridge and put his tongue in the right place with no sound</div>
+        <p>Run the S sound in Elijah Can Speak to the "tiny gap" step and leave the cutaway on screen. Ask him to find the bumpy ridge with his tongue tip. Then: teeth together, big smile, tongue in, hold it, no sound, count to three. Repeat five times. This is placement without pressure, and he learns to feel where the tongue is rather than look for it.</p>
+        <div class="say"><b>Say</b>Show me the tongue on the screen. Teeth together… big smile… tongue in… freeze! One, two, three. Your tongue stayed hidden the whole time.</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>6–11</b>isolation</div>
+      <div>
+        <h3>Long S</h3>
+        <div class="aim">Aim: 10 clear sss sounds on their own · tally every one</div>
+        <p>Use the ladder below from the top. Stay on the first rung that gives a clean sound. Most children with a tongue-between-teeth /s/ get it fastest from the "long t".</p>
+        <ol class="ladder">
+          <li><span><b>Long t.</b> Say "t… t… t…" with the tongue tip tapping the ridge, then let the last one leak: "t-t-t-tsssss". The tongue is already in the right place for t, so the s that follows starts from the right place too.</span></li>
+          <li><span><b>Tongue fence.</b> Bite gently on the coffee stirrer across the front teeth. The tongue physically cannot poke out. Blow the S past the stick. Then take the stick away and try to keep the same feeling.</span></li>
+          <li><span><b>Straw.</b> Hold the straw between the teeth (not on the tongue). Blow sss through it so the air has one narrow path. Then the same without the straw.</span></li>
+          <li><span><b>Hand test.</b> His hand in front of your mouth: sss feels cold and thin, th feels warm and wide. Now his hand in front of his own mouth. He can check himself without you saying anything.</span></li>
+          <li><span><b>Smile and hiss.</b> Only once the sound comes: big smile first, then the S. Rounded lips push the tongue forward, so the smile is protective.</span></li>
+        </ol>
+        <div class="gate">Gate: 8 of 10 clean → syllables. Fewer → stay here, finish with the game, end on a success.</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>11–17</b>syllables</div>
+      <div>
+        <h3>S plus a vowel</h3>
+        <div class="aim">Aim: 20 tries · s before and after a vowel</div>
+        <p>Start with a long S and glue the vowel on the end: "ssssss-ee", then shorten to "see". Do the vowels that keep the mouth smiling first (ee, ay), then the round ones (oo, oh), which pull the tongue forward and are harder. Then the vowel first: "eeee-sss", "ay-sss". Move the game piece every five.</p>
+        <div class="words" style="margin-top:8px"><i>sss-ee</i><i>sss-ay</i><i>sss-ah</i><i>sss-oh</i><i>sss-oo</i><i>ee-sss</i><i>ay-sss</i><i>ah-sss</i><i>oh-sss</i><i>oo-sss</i></div>
+        <div class="say"><b>Say</b>Long S first, then the vowel jumps on. Ssssss… ee. Again, shorter. See! Your tongue stayed in for both.</div>
+        <div class="gate">Gate: 16 of 20 → words. Otherwise finish the session here.</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>17–23</b>words</div>
+      <div>
+        <h3>S at the start of a word</h3>
+        <div class="aim">Aim: 30 tries · 10 words × 3, from the bank below</div>
+        <p>Words with /s/ at the start only, and no second /s/ or /th/ hiding inside. Say it long first ("sssss-un"), then normal. Play memory pairs or hide the cards around the room; each card found is three says. When a "thun" slips in, go back to the hand test for one try: cold thin air is the S.</p>
+        <div class="say"><b>Say</b>S word: sssss-un. Sun. One more: sun. Three S sounds, all hidden. Go and find the next card!</div>
+        <div class="gate">Gate: 24 of 30 across two sessions → phrases. Final-position words (bus, house) come next, then blends (st, sp, sn).</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>23–27</b>phrases</div>
+      <div>
+        <h3>I see a…</h3>
+        <div class="aim">Aim: 10 tries · only if words are at 80%</div>
+        <p>The carrier phrase "I see a ___" gives two S sounds for the price of one. Use the same cards. If he only manages the first /s/, that's fine and still counts as progress; tally the target word only.</p>
+        <div class="say"><b>Say</b>I see a sun. I see a sock. Your turn, pick a card.</div>
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="time"><b>27–30</b>wind down</div>
+      <div>
+        <h3>Catch the grown-up, sticker, log</h3>
+        <div class="aim">Aim: end on a win</div>
+        <p>Five words where he judges you (S or th?). He will get these right, so the session ends with success. Sticker on the chart, look at the tally together, and write one line in the log: the rung you were on, the percentage, and one thing that helped. That line is what you show the therapist.</p>
+        <div class="say"><b>Say</b>Thirty-eight clear S sounds today and your tongue stayed in for most of them. Tomorrow we'll try the "I see" game again.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Tally</h2>
+    <p class="sub">Tap once per try. The line on the meter is 80%, the usual bar for moving up a rung. It saves in this browser until you reset it.</p>
+    <div class="card">
+      <div class="tally">
+        <button class="ok" id="b-ok">✅ Yes<small id="n-ok">0</small></button>
+        <button class="near" id="b-near">🔶 Nearly<small id="n-near">0</small></button>
+        <button class="no" id="b-no">❌ Not yet<small id="n-no">0</small></button>
+      </div>
+      <div class="score">
+        <div class="pct"><span id="pct">0</span><span>% clean · <b id="tot">0</b> tries</span></div>
+        <div class="meter"><i id="bar"></i></div>
+        <button id="undo">Undo</button>
+        <button id="reset">Reset</button>
+      </div>
+      <div class="verdict" id="verdict">Start tallying from the long-S block.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Word banks</h2>
+    <p class="sub">The S in red. Each list avoids a second /s/, a /z/ or a /th/ elsewhere in the word, which would muddle the practice.</p>
+    <div class="bank">
+      <div class="card"><h4>Start of word · this session</h4><div class="words"><i><s>S</s>ia</i><i><s>s</s>ea</i><i><s>s</s>un</i><i><s>s</s>ock</i><i><s>s</s>ee</i><i><s>s</s>ea</i><i><s>s</s>eal</i><i><s>s</s>oup</i><i><s>s</s>oap</i><i><s>s</s>it</i><i><s>s</s>ad</i><i><s>s</s>aw</i><i><s>s</s>ing</i><i><s>s</s>ub</i><i><s>s</s>ail</i><i><s>s</s>ofa</i></div></div>
+      <div class="card"><h4>End of word · next rung</h4><div class="words"><i>Eli<s>s</s>e</i><i>bu<s>s</s></i><i>hou<s>s</s>e</i><i>mou<s>s</s>e</i><i>ye<s>s</s></i><i>dre<s>s</s>s</i><i>gla<s>s</s>s</i><i>gra<s>s</s>s</i><i>ki<s>s</s>s</i><i>cla<s>s</s>s</i><i>goo<s>s</s>e</i><i>hor<s>s</s>e</i></div></div>
+      <div class="card"><h4>Middle of word · later</h4><div class="words"><i>me<s>s</s>sy</i><i>mi<s>s</s>sing</i><i>in<s>s</s>ide</i><i>din<s>o</s>saur</i><i>whi<s>s</s>tle</i><i>ea<s>s</s>el</i><i>ba<s>s</s>ket</i><i>mu<s>s</s>eum</i></div></div>
+      <div class="card"><h4>Blends · last</h4><div class="words"><i><s>s</s>tarfish</i><i><s>S</s>t. Kitts</i><i><s>s</s>wimming</i><i><s>s</s>isters</i><i><s>s</s>ky</i><i><s>s</s>chool</i><i><s>s</s>top</i><i><s>s</s>tar</i><i><s>s</s>poon</i><i><s>s</s>nake</i><i><s>s</s>nail</i><i><s>s</s>mile</i><i><s>s</s>ky</i><i><s>s</s>leep</i><i><s>s</s>wing</i><i><s>s</s>pider</i></div></div>
+      <div class="card"><h4>Minimal pairs · S ears game</h4>
+        <div class="pairs">
+          <span class="th">thumb</span><em>vs</em><span class="ss">sum</span>
+          <span class="th">thin</span><em>vs</em><span class="ss">sin</span>
+          <span class="th">thick</span><em>vs</em><span class="ss">sick</span>
+          <span class="th">think</span><em>vs</em><span class="ss">sink</span>
+          <span class="th">thing</span><em>vs</em><span class="ss">sing</span>
+          <span class="th">mouth</span><em>vs</em><span class="ss">mouse</span>
+          <span class="th">path</span><em>vs</em><span class="ss">pass</span>
+          <span class="th">bath</span><em>vs</em><span class="ss">bass</span>
+          <span class="th">faith</span><em>vs</em><span class="ss">face</span>
+        </div>
+      </div>
+      <div class="card"><h4>Sentences · phrase rung and beyond</h4>
+        <ul style="margin:0;padding-left:18px;font-weight:700">
+          <li>I see a sun.</li><li>I see a sock.</li><li>Sia and Shiloh are my sisters.</li><li>Elise flies in the sky.</li><li>I swim in the sea in St. Kitts.</li><li>Elijah found a starfish in the sea.</li><li>Elijah has six socks.</li><li>Jesus loves me.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h4 style="font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">Story · read together, he says only the S words</h4>
+      <p class="story">Elijah went to the <s>sea</s> in <s>St. Kitts</s>. The <s>sun</s> was hot. Elijah took off one <s>sock</s>, then the other <s>sock</s>. He <s>saw</s> a <s>starfish</s>! <s>Sia</s> <s>said</s> "<s>sssss</s>". Elijah <s>sat</s> on the <s>sand</s> and ate <s>soup</s>. What a <s>silly</s> <s>starfish</s>.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The ladder</h2>
+    <p class="sub">This is the traditional articulation hierarchy. The highlighted row is where this session sits. The therapist decides when he moves; you supply the tallies.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Rung</th><th>He can…</th><th>Move up when</th></tr></thead>
+        <tbody>
+          <tr><td>1 · Hear it</td><td>Tell S words from thumb words, and catch you saying them wrong.</td><td>9 of 10 judgements right</td></tr>
+          <tr><td>2 · Place it</td><td>Put teeth together, tongue in, smile, on request, silently.</td><td>Reliably, five times in a row</td></tr>
+          <tr class="now"><td>3 · Sound alone</td><td>A long clear sss.</td><td>8 of 10, two sessions running</td></tr>
+          <tr class="now"><td>4 · Syllables</td><td>see, say, soo · ees, ays.</td><td>80% over 20 tries</td></tr>
+          <tr class="now"><td>5 · Words</td><td>Start of word, then end, then middle, then blends.</td><td>80% per position over two sessions</td></tr>
+          <tr><td>6 · Phrases</td><td>"I see a sun." Two S sounds in a row.</td><td>80% over 20 tries</td></tr>
+          <tr><td>7 · Sentences and reading</td><td>The story above; made-up sentences from cards.</td><td>80% with no reminders</td></tr>
+          <tr><td>8 · Talking</td><td>S sounds in a 3-minute chat about his day, with one gentle cue allowed.</td><td>Therapist's call · usually months</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Two weeks of practice</h2>
+    <p class="sub">Little and often beats one long session. Fifteen minutes with 60 tries is a good day. Week two repeats week one at the rung he has reached.</p>
+    <div class="week">
+      <div class="day"><b>MON</b>Full session, all blocks</div>
+      <div class="day"><b>TUE</b>15 min: ears · long S · syllables</div>
+      <div class="day"><b>WED</b>15 min: long S · words, memory game</div>
+      <div class="day off"><b>THU</b>Rest, or 2 min of S ears at bedtime</div>
+      <div class="day"><b>FRI</b>Full session</div>
+      <div class="day"><b>SAT</b>10 min: words on a walk, "I see a…"</div>
+      <div class="day off"><b>SUN</b>Rest</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>When it goes wrong</h2>
+    <div class="grid2">
+      <div class="card"><h3>Tongue keeps poking out</h3><p>Back to the tongue fence for the whole block. Bite, blow, remove, repeat. Some children need the stick for two weeks and that is fine.</p></div>
+      <div class="card"><h3>No sss at all, just air or th</h3><p>Stay on "long t" and never ask for the sound in words yet. Ten clear t-t-tsss a day is the job.</p></div>
+      <div class="card"><h3>A slushy, wet, sideways sound</h3><p>That is a different pattern (air leaking over the sides of the tongue). Don't drill it; tell the therapist, because the cues are different.</p></div>
+      <div class="card"><h3>Perfect in words, gone in chat</h3><p>Completely normal. Words to conversation is the longest stretch of all. Keep the level, add phrases, and don't correct him at dinner.</p></div>
+      <div class="card"><h3>He's fed up</h3><p>Stop, do the "catch the grown-up" game so it ends on a win, and try a shorter session tomorrow. Never end on a failed try.</p></div>
+      <div class="card"><h3>Nasal, stuffy-sounding speech</h3><p>Not a tongue thing. Mention it to the therapist and ask whether an ear, nose and throat check for adenoids or a tongue-tie assessment is worth doing.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>For the therapist</h2>
+    <div class="card">
+      <p>This plan (for Elijah, used with the Elijah Can Speak app) uses the traditional articulation approach (ear training → placement → isolation → syllables → words → phrases → sentences → conversation) with an 80% criterion, five-count reinforcement and a stick or straw to block interdental placement. Target /s/ is taught tip-down; switch the cue card to tip-up if that is your target. We will only practise the rung you set, and will bring the tally log to each appointment. Please tell us if you would rather we did not do the "S ears" contrast with the th words, or if you want a different elicitation order.</p>
+      <p style="margin-top:10px"><b>Sources the plan draws on:</b> ASHA Practice Portal, Speech Sound Disorders: Articulation and Phonology (traditional and contextual approaches); RCSLT guidance on speech sound difficulties; Van Riper's traditional articulation hierarchy; Secord et al., <i>Eliciting Sounds</i> (the "long t" and stirrer techniques); Caroline Bowen's free word lists at speech-language-therapy.com.</p>
+    </div>
+  </section>
+
+  <p class="foot">This is a parent's practice plan, not a clinical programme. Anything here can be overruled by his therapist, and should be.</p>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem('snake-tally')||'[]'); } catch(e){ hist = []; }
+  function save(){ try { localStorage.setItem('snake-tally', JSON.stringify(hist)); } catch(e){} }
+  function render(){
+    const ok = hist.filter(x=>x==='ok').length, near = hist.filter(x=>x==='near').length, no = hist.filter(x=>x==='no').length, tot = hist.length;
+    $('n-ok').textContent = ok; $('n-near').textContent = near; $('n-no').textContent = no; $('tot').textContent = tot;
+    const pct = tot ? Math.round(ok/tot*100) : 0;
+    $('pct').textContent = pct; $('bar').style.width = pct+'%';
+    $('bar').style.background = tot && pct>=80 ? 'var(--snake)' : 'var(--nearly)';
+    $('verdict').textContent = !tot ? 'Start tallying from the long-S block.'
+      : tot<10 ? 'Keep going, ten tries before you judge.'
+      : pct>=80 ? 'At or above 80%. If this holds next session too, move up a rung.'
+      : pct>=60 ? 'Getting there. Stay on this rung and bank more tries.'
+      : 'Below 60%. Drop back one rung so the session ends on wins.';
+  }
+  const add = k => () => { hist.push(k); save(); render(); };
+  $('b-ok').onclick = add('ok'); $('b-near').onclick = add('near'); $('b-no').onclick = add('no');
+  $('undo').onclick = () => { hist.pop(); save(); render(); };
+  $('reset').onclick = () => { if (!hist.length || confirm('Clear the tally?')) { hist = []; save(); render(); } };
+  render();
+})();
+</script>
+
+</body>
+</html>

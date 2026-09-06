@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Elijah Can Speak</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ff8a3d">
+<style>
+  :root{--bg:#fff7e6;--ink:#2b2340;--accent:#ff8a3d;--accent-d:#c9651f;--good:#2ecc71;--bad:#ff5b5b;--blue:#3aa0ff;--purple:#9b6bff;--amber:#d9a72b}
+  html,body{margin:0;height:100%;background:var(--bg);font-family:"Nunito","Segoe UI",system-ui,sans-serif;color:var(--ink);overflow:hidden;-webkit-user-select:none;user-select:none}
+  #stage{position:fixed;inset:0}
+  canvas{display:block}
+  #title{position:fixed;top:12px;left:16px;font-size:clamp(20px,3.2vw,34px);font-weight:900;text-shadow:0 2px 0 #fff;line-height:1.1}
+  #title span{color:var(--accent)}
+  #title small{display:block;font-size:.5em;font-weight:800;opacity:.7}
+  #dots{position:fixed;top:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px}
+  #dots i{width:12px;height:12px;border-radius:50%;background:#e2d5bf;display:block;transition:all .3s}
+  #dots i.on{background:var(--accent);transform:scale(1.3)}
+  #dots i.done{background:#ffc79a}
+  #badge{position:fixed;top:12px;right:18px;font-size:clamp(44px,8vw,90px);opacity:0;transform:scale(.4) rotate(-20deg);transition:all .4s cubic-bezier(.34,1.56,.64,1);pointer-events:none;z-index:3}
+  #badge.show{opacity:1;transform:scale(1) rotate(0)}
+  .label{position:fixed;transform:translate(-50%,-125%);background:#fff;border:3px solid var(--accent);border-radius:14px;padding:4px 12px;font-weight:900;font-size:clamp(14px,2vw,20px);pointer-events:none;opacity:0;transition:opacity .3s;white-space:nowrap;box-shadow:0 3px 0 rgba(0,0,0,.12)}
+  .label:after{content:"";position:absolute;left:50%;bottom:-11px;margin-left:-8px;border:8px solid transparent;border-top-color:var(--accent);border-bottom:0}
+  .label.show{opacity:1}
+  .label.blue{border-color:var(--blue)}.label.blue:after{border-top-color:var(--blue)}
+  .label.purple{border-color:var(--purple)}.label.purple:after{border-top-color:var(--purple)}
+  #bottom{position:fixed;left:0;right:0;bottom:0;padding:10px 16px 16px;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;z-index:2}
+  #caption{pointer-events:auto;max-width:900px;background:#fff;border-radius:22px;padding:14px 22px;font-size:clamp(18px,2.6vw,28px);font-weight:800;text-align:center;box-shadow:0 6px 0 rgba(0,0,0,.1);line-height:1.3;min-height:1.3em}
+  .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+  .row[hidden]{display:none}
+  button{font:inherit;font-weight:900;font-size:clamp(16px,2.2vw,22px);padding:12px 22px;border-radius:999px;border:0;background:var(--accent);color:#fff;box-shadow:0 5px 0 var(--accent-d);cursor:pointer;transition:transform .1s;touch-action:manipulation}
+  button:active{transform:translateY(3px);box-shadow:0 2px 0 var(--accent-d)}
+  button.ghost{background:#fff;color:var(--ink);box-shadow:0 5px 0 #d9cdb8}
+  button.ghost:active{box-shadow:0 2px 0 #d9cdb8}
+  button.good{background:var(--good);box-shadow:0 5px 0 #1f9a52}
+  button.bad{background:var(--bad);box-shadow:0 5px 0 #c53b3b}
+  button.word{background:var(--blue);box-shadow:0 5px 0 #2571b8;font-size:clamp(20px,3vw,30px);min-width:120px}
+  button.word b{color:#ffe066}
+  button.small{font-size:14px;padding:8px 14px}
+  button[disabled]{opacity:.35;pointer-events:none}
+  #corner{position:fixed;left:16px;top:74px;display:flex;gap:8px;align-items:center;pointer-events:auto;flex-wrap:wrap;z-index:2}
+  #backend{font-size:12px;font-weight:800;opacity:.55;background:#fff;padding:4px 8px;border-radius:8px}
+  .overlay{position:fixed;inset:0;background:rgba(43,35,64,.55);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+  .overlay.open{display:flex}
+  .card{background:#fff;border-radius:20px;max-width:720px;max-height:85vh;overflow:auto;padding:24px 28px;font-size:16px;line-height:1.5;-webkit-user-select:text;user-select:text}
+  .card h2{margin:0 0 6px}
+  .card h3{margin:18px 0 4px;color:var(--accent-d)}
+  .card ul{padding-left:20px;margin:6px 0}
+  .card a{color:#2571b8}
+  #home{position:fixed;inset:0;background:var(--bg);z-index:15;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:20px;overflow:auto}
+  #home[hidden]{display:none}
+  #home h1{font-size:clamp(30px,5.4vw,60px);margin:0;text-shadow:0 3px 0 #fff;text-align:center}
+  #home h1 span{color:var(--accent)}
+  #home p{font-size:clamp(16px,2.4vw,24px);font-weight:800;margin:0;opacity:.75;text-align:center}
+  .lessons{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+  .lesson{width:200px;background:#fff;border-radius:26px;padding:18px 14px;text-align:center;box-shadow:0 8px 0 #e6d8c2;cursor:pointer;transition:transform .12s}
+  .lesson:active{transform:translateY(4px);box-shadow:0 4px 0 #e6d8c2}
+  .lesson .big{font-size:64px;font-weight:900;line-height:1;color:var(--accent)}
+  .lesson .say{font-size:30px;font-weight:900;color:#6b6478;line-height:1.3}
+  .lesson .name{font-weight:900;font-size:18px;margin-top:6px}
+  #home-today{background:#fff;border-radius:999px;padding:10px 20px;font-weight:900;font-size:18px;box-shadow:0 5px 0 #e6d8c2}
+  #home-verse{font-weight:800;font-size:clamp(15px,2.2vw,21px);color:#5a4d6e;text-align:center;max-width:560px;line-height:1.35;font-style:italic}
+  #home-verse small{display:block;font-style:normal;font-size:.75em;opacity:.7;margin-top:2px}
+  #home-face{position:relative;width:clamp(150px,22vmin,220px);height:clamp(150px,22vmin,220px)}
+  #home-face img{width:100%;height:100%;border-radius:50%;object-fit:cover;border:8px solid #fff;box-shadow:0 8px 0 #e6d8c2;display:block}
+  #home-face img[hidden]{display:none}
+  #home-face .letter[hidden]{display:none}
+  #home-face .letter{width:100%;height:100%;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:clamp(70px,11vmin,110px);font-weight:900;border:8px solid #fff;box-sizing:border-box;box-shadow:0 8px 0 #e6d8c2}
+  #home-face span{position:absolute;right:-6px;bottom:-6px;font-size:clamp(40px,7vmin,64px);transform:rotate(-15deg)}
+  #home-today b{color:var(--good)}
+
+  /* practice panel */
+  #ppanel{position:fixed;right:16px;top:74px;bottom:120px;width:min(48vw,560px);background:#fff;border-radius:24px;box-shadow:0 8px 0 rgba(0,0,0,.1);display:flex;flex-direction:column;overflow:hidden;z-index:2}
+  #ppanel[hidden]{display:none}
+  .ptabs{display:flex;gap:6px;padding:12px 12px 8px;flex-wrap:wrap;border-bottom:2px solid #f1e9da}
+  .ptabs button{font-size:15px;padding:8px 14px;background:#fff7e6;color:var(--ink);box-shadow:0 3px 0 #e6d8c2}
+  .ptabs button.on{background:var(--accent);color:#fff;box-shadow:0 3px 0 var(--accent-d)}
+  .pbody{flex:1;overflow:auto;padding:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+  .wcard{background:#fff7e6;border-radius:18px;overflow:hidden;cursor:pointer;box-shadow:0 4px 0 #e6d8c2;display:flex;flex-direction:column;align-items:center;transition:transform .1s}
+  .wcard:active{transform:translateY(3px);box-shadow:0 1px 0 #e6d8c2}
+  .wcard .pic{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#f3e9d6}
+  .wcard .emo{width:100%;aspect-ratio:1;display:grid;place-items:center;font-size:56px;background:#f3e9d6}
+  .wcard .w{font-weight:900;font-size:20px;padding:8px 6px 10px;text-align:center;line-height:1.1}
+  .wcard .w s{text-decoration:none;color:var(--accent)}
+  .hint{font-size:15px;font-weight:800;color:#6b6478;margin:0 0 10px;line-height:1.35}
+  .tricks{display:flex;flex-direction:column;gap:10px}
+  .tricks button{font-size:20px;text-align:left;display:flex;align-items:center;gap:12px;background:var(--blue);box-shadow:0 5px 0 #2571b8}
+  .tricks button small{display:block;font-size:13px;font-weight:700;opacity:.9}
+  .tricks button.calm{background:var(--purple);box-shadow:0 5px 0 #6e47c9}
+  .sent{background:#fff7e6;border-radius:18px;padding:12px;display:flex;gap:12px;align-items:center;margin-bottom:10px;box-shadow:0 4px 0 #e6d8c2}
+  .sent img{width:74px;height:74px;border-radius:12px;object-fit:cover;flex-shrink:0}
+  .sent .txt{font-weight:800;font-size:18px;line-height:1.3;flex:1}
+  .sent .txt s{text-decoration:none;color:var(--accent);font-weight:900}
+  .sent .txt.hid s{color:inherit}
+  .sent .btns{display:flex;flex-direction:column;gap:6px}
+  .sent .btns button{font-size:14px;padding:8px 12px}
+  #earbtn{position:fixed;left:26%;top:44%;transform:translateX(-50%);font-size:clamp(22px,3.4vw,34px);padding:18px 34px;background:var(--good);box-shadow:0 7px 0 #1f9a52;z-index:4}
+  #earbtn[hidden]{display:none}
+  .ptally{border-top:2px solid #f1e9da;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+  .today{display:flex;align-items:center;gap:10px;font-weight:900;font-size:15px}
+  .today .bar{flex:1;height:12px;background:#f1e9da;border-radius:6px;overflow:hidden}
+  .today .bar i{display:block;height:100%;background:var(--good);width:0;transition:width .3s}
+  .tbtns{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .tbtns button{font-size:16px;padding:12px 6px;color:var(--ink)}
+  .tbtns .t-ok{background:#dff3e6;box-shadow:0 4px 0 #9ad9b6}.tbtns .t-near{background:#fbeed2;box-shadow:0 4px 0 #ead2a0}.tbtns .t-no{background:#ffd6d6;box-shadow:0 4px 0 #f0a8a8}
+  #loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;background:var(--bg);z-index:20}
+  @media (max-width:820px){ #ppanel{left:10px;right:10px;width:auto;top:46%;bottom:112px} #earbtn{left:50%;top:24%} #corner{top:60px;left:12px} #title{font-size:18px} .lesson{width:140px} .lesson .big{font-size:48px} }
+</style>
+</head>
+<body>
+<div id="loading">Loading…</div>
+<div id="stage"></div>
+
+<div id="home" hidden>
+  <div id="home-face"><img alt="Elijah"><div class="letter" hidden>E</div></div>
+  <h1>Elijah <span>Can Speak</span></h1>
+  <p>Hi Elijah! Pick a sound to practise.</p>
+  <div class="lessons">
+    <div class="lesson" data-sound="s"><div class="big">S</div><div class="say">sss</div><div class="name">the S sound</div></div>
+    <div class="lesson" data-sound="d"><div class="big">D</div><div class="say">d!</div><div class="name">the D sound</div></div>
+    <div class="lesson" data-sound="g"><div class="big">G</div><div class="say">g!</div><div class="name">the G sound</div></div>
+  </div>
+  <div id="home-today">S sounds today: <b id="home-n">0</b> / <span id="home-target">30</span></div>
+  <div id="home-verse">“I can do all things through Christ who strengthens me.”<small>Philippians 4:13</small></div>
+</div>
+
+<div id="title">The <span id="t-name">S Sound</span><small id="t-sub">How to say “sss”</small></div>
+<div id="dots"></div>
+<div id="badge"></div>
+
+<div class="label" id="lbl-ridge">👆 bumpy ridge</div>
+<div class="label" id="lbl-back">☁️ squishy back</div>
+<div class="label" id="lbl-teeth">🦷 teeth</div>
+<div class="label" id="lbl-tongue">👅 tongue</div>
+<div class="label blue" id="lbl-air">💨 air</div>
+<div class="label purple" id="lbl-voice">🔊 voice buzz</div>
+
+<div id="ppanel" hidden>
+  <div class="ptabs" id="ptabs"></div>
+  <div class="pbody" id="pbody"></div>
+  <div class="ptally">
+    <div class="today"><span id="today-n">0</span>/<span id="today-target">30</span> today <div class="bar"><i id="today-bar"></i></div><span id="tab-pct"></span></div>
+    <div class="tbtns">
+      <button class="t-ok" id="t-ok">✅ Yes</button>
+      <button class="t-near" id="t-near">🔶 Nearly</button>
+      <button class="t-no" id="t-no">❌ Not yet</button>
+    </div>
+  </div>
+</div>
+<button id="earbtn" hidden>👂 I heard an S!</button>
+
+<div id="bottom">
+  <div id="caption"></div>
+  <div class="row" id="nav">
+    <button class="ghost" id="back">◀ Back</button>
+    <button id="play">▶ Play</button>
+    <button class="ghost" id="next">Next ▶</button>
+  </div>
+  <div class="row" id="compare" hidden>
+    <button class="good" id="cmp-good"></button>
+    <button class="bad" id="cmp-bad"></button>
+  </div>
+  <div class="row" id="practice" hidden></div>
+</div>
+
+<div id="corner">
+  <button class="ghost small" id="home-btn">🏠 Sounds</button>
+  <button class="ghost small" id="grown-btn">ℹ️ Grown-ups (hold)</button>
+  <button class="ghost small" id="voice-btn">🔊 Read aloud: on</button>
+  <span id="backend"></span>
+</div>
+
+<div class="overlay" id="grown">
+  <div class="card">
+    <h2>For grown-ups and the speech therapist</h2>
+    <p>Made for Elijah, to run alongside his speech therapy at the level his therapist sets. It is not a replacement for therapy. Please tell us what is wrong or unclear so it can be fixed. This panel opens with a press-and-hold so Elijah does not wander in.</p>
+    <h3>Where Elijah is right now</h3>
+    <ul>
+      <li>He has made a clean /s/ a few times but defaults to the tongue-between-teeth pattern. The daily job is repetitions until it stops being an effort: aim for 30 clear S sounds a day in short bursts (the target is adjustable below).</li>
+      <li>Two tricks for the "forcing": the <b>long t</b> (t‑t‑t‑tsss, the tongue is already on the ridge for a t) and the <b>quiet S</b> (a whisper-soft sss; pushing hard tends to slide the tongue forward). Both are under the Long S tab.</li>
+      <li>The Start / End / Middle / Together / Sentences tabs are built and ready, but long S comes first. The therapist decides when to move on.</li>
+      <li>We say "the S sound" and always model it as "sss", never the letter name "ess". Likewise "d" and "g", not "dee" and "gee".</li>
+    </ul>
+    <h3>What the picture shows</h3>
+    <ul>
+      <li>A side-on (midline) cutaway of the mouth: lips, front teeth, the alveolar ridge, the hard and soft palate, the tongue, and a “voice box” marker for the larynx.</li>
+    </ul>
+    <div id="grown-lesson"></div>
+    <h3>Progress, last 7 days</h3>
+    <div id="history"></div>
+    <p style="margin-top:8px">Daily target: <input id="target-in" type="number" min="5" max="200" style="width:70px;font:inherit;font-weight:800;padding:4px 8px;border-radius:8px;border:2px solid #e2d5bf"> clear S sounds a day. Only "Yes" counts towards it.</p>
+    <h3>Photos on this device</h3>
+    <p>Photos are kept on this tablet only and never uploaded. Choose one for each slot, or import the photo pack file in one go.</p>
+    <div id="photo-slots"></div>
+    <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><label class="ghost small" style="background:#fff;border-radius:999px;padding:8px 14px;font-weight:900;font-size:14px;box-shadow:0 4px 0 #d9cdb8;cursor:pointer">Import photo pack<input type="file" id="pack-in" accept=".json,application/json" hidden></label><button class="ghost small" id="photos-clear">Remove all photos</button></p>
+    <h3>Personal words and photos</h3>
+    <ul>
+      <li>Sia, Elise, sisters, St. Kitts, sea, starfish, swimming, sky, school and smile all come from Elijah's own family and photos. Shiloh starts with "sh", a different sound, so it only appears as a "not an S" word in the listening game.</li>
+      <li>Only words spelled with the letter S are on the cards, so the orange letter always matches the sound. Words like ice, face and pencil, where a C makes the S sound, are left out on purpose. "Jesus" stays in the sentences (its final S is a true S; the middle one is a Z).</li>
+      <li>"Jesus", "sisters" and "Elise's" end in, or contain, a Z sound: the same tongue position with the voice on. Children with this pattern usually lisp Z the same way; the therapist may want to treat the two together.</li>
+      <li>In the uniform photo Shiloh is on the left and Sia on the right; in the coats photo Shiloh is in purple and Sia in pink.</li>
+      <li>Photos are part of the app file and are not uploaded anywhere.</li>
+    </ul>
+    <h3>What it is based on</h3>
+    <ul>
+      <li>ASHA Practice Portal – Speech Sound Disorders: Articulation and Phonology. <a href="https://www.asha.org/practice-portal/clinical-topics/articulation-and-phonology/" target="_blank">asha.org</a></li>
+      <li>RCSLT (Royal College of Speech and Language Therapists). <a href="https://www.rcslt.org/" target="_blank">rcslt.org</a></li>
+      <li>Seeing Speech, University of Glasgow – real MRI and ultrasound video of speech sounds. <a href="https://www.seeingspeech.ac.uk/" target="_blank">seeingspeech.ac.uk</a></li>
+      <li>Sounds of Speech, University of Iowa. <a href="https://soundsofspeech.uiowa.edu/" target="_blank">soundsofspeech.uiowa.edu</a></li>
+    </ul>
+    <p style="text-align:right"><button class="ghost small" id="grown-close">Close</button></p>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.webgpu.js';
+
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const ease = t => t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2;
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const CHILD = 'Elijah';
+
+/* ---------------- renderer ---------------- */
+const renderer = new THREE.WebGPURenderer({ antialias:true });
+await renderer.init();
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+$('#stage').appendChild(renderer.domElement);
+$('#backend').textContent = renderer.backend.isWebGPUBackend ? 'WebGPU' : 'WebGL 2 (fallback)';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xfff7e6);
+const camera = new THREE.PerspectiveCamera(40, innerWidth/innerHeight, 0.05, 50);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd8b58a, 1.3));
+const key = new THREE.DirectionalLight(0xffffff, 1.8); key.position.set(-2, 3, 2.5); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffe4c8, 0.7); fill.position.set(2, -1, 3); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xbfe6ff, 0.5); rim.position.set(1, 2, -3); scene.add(rim);
+
+/* ---------------- colours ---------------- */
+const SKIN=0x8d5a3b, HAIR=0x241611, CUT=0xf2a99a, CAV=0x521c2a, TONGUE=0xef6280, PAL=0xf8ead8, VELUM=0xf0c4b0, TOOTH=0xffffff, LIP=0xd25a6a;
+const mat = (c, o={}) => new THREE.MeshStandardMaterial({ color:c, roughness:.6, metalness:0, ...o });
+
+/* ---------------- the head: two halves ---------------- */
+function halfSphere(r, side, color, thetaLen=Math.PI){
+  const g = new THREE.SphereGeometry(r, 64, 40, side>0 ? Math.PI/2 : -Math.PI/2, Math.PI, 0, thetaLen);
+  return new THREE.Mesh(g, mat(color, { transparent:true }));
+}
+const keepG = new THREE.Group(), goneG = new THREE.Group(), centre = new THREE.Group();
+scene.add(keepG, goneG, centre);
+for (const [g, s] of [[keepG, 1], [goneG, -1]]) {
+  g.add(halfSphere(1, s, SKIN));
+  g.add(halfSphere(1.05, s, HAIR, 1.05));
+  const ear = new THREE.Mesh(new THREE.SphereGeometry(.2, 24, 16), mat(SKIN,{transparent:true}));
+  ear.scale.set(.45, 1, .8); ear.position.set(.97*s, .02, .05); g.add(ear);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(.14, 24, 16), mat(0xffffff,{roughness:.25, transparent:true}));
+  eye.position.set(.36*s, .2, .86); g.add(eye);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(.065, 16, 12), mat(0x1a1a1a,{roughness:.2, transparent:true}));
+  pupil.position.set(.36*s, .19, .985); g.add(pupil);
+  const brow = new THREE.Mesh(new THREE.TorusGeometry(.16, .03, 8, 20, Math.PI*.8), mat(HAIR,{transparent:true}));
+  brow.position.set(.36*s, .34, .9); brow.rotation.z = Math.PI*.1; g.add(brow);
+  const cheek = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), mat(0xc4785a,{transparent:true, roughness:.9}));
+  cheek.position.set(.5*s, -.1, .82); cheek.scale.set(1.2, .8, .5); g.add(cheek);
+}
+const nose = new THREE.Mesh(new THREE.SphereGeometry(.11, 20, 14), mat(0x7a4a2e,{transparent:true}));
+nose.position.set(0, -.05, .97); centre.add(nose);
+const smile = new THREE.Mesh(new THREE.TorusGeometry(.3, .045, 10, 30, Math.PI), mat(0x8a2b3a,{transparent:true}));
+smile.rotation.z = Math.PI; smile.position.set(0, -.28, .9); centre.add(smile);
+
+const cap = new THREE.Mesh(new THREE.CircleGeometry(1, 96), mat(CUT, {roughness:.8}));
+cap.rotation.y = -Math.PI/2; scene.add(cap);
+
+/* ---------------- inside the mouth ---------------- */
+const mouthG = new THREE.Group(); mouthG.rotation.y = -Math.PI/2; scene.add(mouthG);
+function makeShape(pts, spline){
+  const sh = new THREE.Shape();
+  sh.moveTo(pts[0][0], pts[0][1]);
+  if (spline) sh.splineThru([...pts.slice(1), pts[0]].map(p => new THREE.Vector2(p[0], p[1])));
+  else pts.slice(1).forEach(p => sh.lineTo(p[0], p[1]));
+  sh.closePath();
+  return sh;
+}
+function extrude(pts, {depth=.16, bevel=.01, spline=false} = {}){
+  return new THREE.ExtrudeGeometry(makeShape(pts, spline), { depth, bevelEnabled: bevel>0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 2, curveSegments: 14 });
+}
+function part(pts, color, opts){ const m = new THREE.Mesh(extrude(pts, opts), mat(color, opts.mat||{})); mouthG.add(m); return m; }
+part([[.82,-.02],[.62,.05],[.40,.13],[.20,.13],[.06,.06],[-.04,-.06],[-.09,-.30],[-.10,-.62],[.02,-.66],[.06,-.52],[.20,-.50],[.50,-.48],[.70,-.47],[.86,-.42],[.93,-.28],[.94,-.12],[.90,-.03]], CAV, {depth:.02, bevel:0, mat:{roughness:1}});
+part([[.80,-.04],[.72,-.05],[.66,-.06],[.60,-.02],[.50,.06],[.38,.10],[.26,.10],[.20,.10],[.20,.19],[.26,.19],[.40,.19],[.52,.14],[.62,.06],[.70,.03],[.80,.03]], PAL, {depth:.16, bevel:.01, spline:true});
+part([[.22,.10],[.14,.06],[.04,0],[-.02,-.06],[-.08,-.02],[0,.08],[.12,.15],[.22,.19]], VELUM, {depth:.16, bevel:.012, spline:true});
+part([[.745,-.03],[.80,-.03],[.795,-.19],[.755,-.19]], TOOTH, {depth:.17, bevel:.008, mat:{roughness:.3}});
+part([[.685,-.26],[.735,-.26],[.74,-.45],[.68,-.45]], TOOTH, {depth:.17, bevel:.008, mat:{roughness:.3}});
+part([[.80,0],[.88,.01],[.95,-.04],[.96,-.11],[.92,-.155],[.86,-.15],[.81,-.10]], LIP, {depth:.17, bevel:.015, spline:true});
+part([[.76,-.46],[.84,-.45],[.91,-.40],[.945,-.33],[.925,-.265],[.87,-.245],[.79,-.27]], LIP, {depth:.17, bevel:.015, spline:true});
+
+const GLOW_AT = { ridge:[.665,-.05], velum:[.22,.085] };
+const glowRing = new THREE.Mesh(new THREE.TorusGeometry(.05, .014, 10, 32), new THREE.MeshBasicMaterial({color:0xffd23f, transparent:true, opacity:0}));
+glowRing.position.set(.665, -.05, .19); mouthG.add(glowRing);
+const voiceG = new THREE.Group(); voiceG.position.set(-.04, -.56, .06); mouthG.add(voiceG);
+voiceG.add(new THREE.Mesh(new THREE.SphereGeometry(.035, 16, 12), new THREE.MeshBasicMaterial({color:0xb48cff})));
+const ripples = [0,1,2].map(() => { const r = new THREE.Mesh(new THREE.TorusGeometry(.05, .008, 8, 32), new THREE.MeshBasicMaterial({color:0xb48cff, transparent:true, opacity:0})); voiceG.add(r); return r; });
+let voiced = 0, voicedGoal = 0;
+
+/* ---------------- the tongue ---------------- */
+const POSES = {
+  rest: [[.10,-.22],[.22,-.16],[.36,-.16],[.50,-.21],[.60,-.26],[.64,-.29],[.66,-.33],[.64,-.38],[.56,-.44],[.40,-.46],[.12,-.47],[.04,-.40],[.06,-.30]],
+  s:    [[.10,-.16],[.22,-.06],[.36, .00],[.50,-.02],[.60,-.08],[.66,-.115],[.67,-.30],[.65,-.38],[.56,-.44],[.40,-.46],[.12,-.47],[.04,-.40],[.06,-.28]],
+  th:   [[.10,-.20],[.22,-.12],[.36,-.10],[.50,-.13],[.62,-.17],[.78,-.20],[.92,-.215],[.88,-.25],[.74,-.29],[.40,-.46],[.12,-.47],[.04,-.40],[.06,-.30]],
+  d:    [[.10,-.18],[.22,-.10],[.36,-.07],[.50,-.06],[.60,-.055],[.68,-.04],[.71,-.07],[.69,-.16],[.60,-.32],[.40,-.46],[.12,-.47],[.04,-.40],[.06,-.30]],
+  dRel: [[.10,-.18],[.22,-.11],[.36,-.09],[.50,-.10],[.60,-.12],[.67,-.14],[.70,-.19],[.67,-.26],[.58,-.36],[.40,-.46],[.12,-.47],[.04,-.40],[.06,-.30]],
+  g:    [[.08, .00],[.16, .10],[.28, .11],[.40, .02],[.52,-.14],[.60,-.26],[.64,-.33],[.62,-.38],[.54,-.44],[.40,-.46],[.12,-.47],[.02,-.42],[.02,-.20]],
+  gRel: [[.08,-.06],[.16, .02],[.28, .02],[.40,-.04],[.52,-.16],[.60,-.27],[.64,-.33],[.62,-.38],[.54,-.44],[.40,-.46],[.12,-.47],[.02,-.42],[.02,-.22]],
+};
+const tongueMat = mat(TONGUE, {roughness:.45});
+const TONGUE_OPTS = {depth:.10, bevel:.02, spline:true};
+let tongue = new THREE.Mesh(extrude(POSES.rest, TONGUE_OPTS), tongueMat);
+mouthG.add(tongue);
+let tongueFrom = POSES.rest, tongueTo = POSES.rest, tongueT = 1, tongueDur = .9;
+function setTongue(name, dur=.9){ tongueFrom = currentTonguePts(); tongueTo = POSES[name]; tongueT = 0; tongueDur = dur; }
+function currentTonguePts(){ const k = ease(clamp(tongueT,0,1)); return tongueFrom.map((p,i) => [p[0]+(tongueTo[i][0]-p[0])*k, p[1]+(tongueTo[i][1]-p[1])*k]); }
+function rebuildTongue(pts){ const old = tongue; tongue = new THREE.Mesh(extrude(pts, TONGUE_OPTS), tongueMat); mouthG.add(tongue); mouthG.remove(old); old.geometry.dispose(); }
+
+/* ---------------- airflow ---------------- */
+const N = 320;
+const air = new THREE.InstancedMesh(new THREE.SphereGeometry(.013, 8, 6), new THREE.MeshBasicMaterial({color:0xffffff}), N);
+air.visible = false; mouthG.add(air);
+const P = (x,y) => new THREE.Vector3(x, y, .14);
+const curve = pts => new THREE.CatmullRomCurve3(pts.map(p => P(p[0], p[1])));
+const BLUE = new THREE.Color(0x63d8ff), ORANGE = new THREE.Color(0xffb347);
+const AIR = {
+  s:     { kind:'jet', curve: curve([[0,-.32],[.10,-.12],[.30,.05],[.50,.02],[.61,-.045],[.67,-.085],[.72,-.15],[.77,-.225],[.95,-.22],[1.35,-.225],[1.9,-.23]]), spread: t => t<.7 ? .012 : .012+(t-.7)*.06, speed:[.35,.55], color: BLUE, size: 1 },
+  th:    { kind:'jet', curve: curve([[0,-.32],[.10,-.14],[.30,-.06],[.50,-.09],[.62,-.13],[.76,-.16],[.90,-.19],[1.05,-.16],[1.4,-.10],[1.9,-.02]]), spread: t => t<.55 ? .012 : .012+(t-.55)*.45, speed:[.12,.22], color: ORANGE, size: 1.5 },
+  dTrap: { kind:'trap', curve: curve([[-.02,-.50],[0,-.34],[.06,-.20],[.16,-.09],[.30,-.03],[.45,-.02],[.56,-.035]]), color: BLUE },
+  dBurst:{ kind:'burst', curve: curve([[.58,-.03],[.66,-.09],[.72,-.17],[.78,-.225],[.95,-.22],[1.3,-.21],[1.9,-.18]]), color: BLUE },
+  gTrap: { kind:'trap', curve: curve([[-.02,-.56],[-.01,-.42],[.0,-.30],[.02,-.20],[.05,-.12]]), color: BLUE },
+  gBurst:{ kind:'burst', curve: curve([[.08,-.06],[.18,.04],[.32,.05],[.46,-.03],[.58,-.12],[.68,-.16],[.78,-.225],[1.0,-.22],[1.4,-.21],[1.9,-.18]]), color: BLUE },
+};
+const parts = Array.from({length:N}, () => ({ t: Math.random(), sp: Math.random(), oy: Math.random()*2-1, ox: Math.random()*2-1, sz: .7+Math.random()*.6, ph: Math.random()*6.28 }));
+let airMode = null, airAge = 0;
+const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _c = new THREE.Color();
+function setAir(mode){
+  airMode = mode; airAge = 0;
+  if (!mode) { air.visible = false; return; }
+  air.visible = true; const A = AIR[mode];
+  for (let i=0;i<N;i++){ _c.copy(A.color).offsetHSL(0, 0, (Math.random()-.5)*.25); air.setColorAt(i, _c); parts[i].t = A.kind==='burst' ? -Math.random()*.35 : Math.random(); }
+  air.instanceColor.needsUpdate = true;
+}
+function updateAir(dt){
+  if (!air.visible) return;
+  const A = AIR[airMode]; airAge += dt;
+  for (let i=0;i<N;i++){
+    const p = parts[i]; let sc = p.sz;
+    if (A.kind==='jet'){ p.t += dt*(A.speed[0] + p.sp*(A.speed[1]-A.speed[0])); if (p.t>1) p.t -= 1; A.curve.getPointAt(p.t, _p); const s = A.spread(p.t); _p.y += p.oy*s; _p.z += p.ox*s*.6; sc *= A.size*(airMode==='th' ? (.6+p.t) : 1); }
+    else if (A.kind==='trap'){ const e = Math.min(1, airAge/1.2); A.curve.getPointAt(p.t, _p); _p.y += p.oy*.03 + Math.sin(airAge*14+p.ph)*.012*e; _p.x += Math.cos(airAge*11+p.ph)*.012*e; _p.z += p.ox*.03; sc *= .8 + .4*e; }
+    else { p.t += dt*1.6; if (p.t < 0 || p.t > 1){ sc = 0; _p.set(0,0,0); } else { A.curve.getPointAt(p.t, _p); const s = .015+p.t*.09; _p.y += p.oy*s; _p.z += p.ox*s*.6; sc *= 1.3*(1-p.t*.5); } }
+    _m.makeScale(sc,sc,sc).setPosition(_p); air.setMatrixAt(i, _m);
+  }
+  air.instanceMatrix.needsUpdate = true;
+}
+
+/* ---------------- sounds ---------------- */
+let actx;
+function audio(){ if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); if (actx.state==='suspended') actx.resume(); return actx; }
+let noiseBuf;
+function noise(){ const c = audio(); if (!noiseBuf){ noiseBuf = c.createBuffer(1, c.sampleRate*2, c.sampleRate); const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; } const s = c.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
+const filt = (c, type, f, q=1) => { const b = c.createBiquadFilter(); b.type=type; b.frequency.value=f; b.Q.value=q; return b; };
+function playFricative(kind, dur=1.2, gain){
+  const c = audio(), src = noise(), g = c.createGain(), t = c.currentTime;
+  const lvl = gain ?? (kind==='s' ? .55 : .4);
+  if (kind==='s'){ src.connect(filt(c,'highpass',3800)).connect(filt(c,'bandpass',6800,.9)).connect(g); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+.06); }
+  else { src.connect(filt(c,'bandpass',1800,.35)).connect(filt(c,'lowpass',4500)).connect(g); g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(lvl,t+.08); }
+  g.connect(c.destination);
+  g.gain.setValueAtTime(lvl, t+dur-.12); g.gain.linearRampToValueAtTime(0, t+dur);
+  src.start(t); src.stop(t+dur+.05);
+  return wait(dur*1000);
+}
+function playStop(kind){
+  const c = audio(), t = c.currentTime, out = c.createGain(); out.gain.value = .9; out.connect(c.destination);
+  const burst = noise(), bg = c.createGain();
+  burst.connect(filt(c,'bandpass', kind==='d'?4200:1700, kind==='d'?1:3)).connect(bg).connect(out);
+  bg.gain.setValueAtTime(0,t); bg.gain.linearRampToValueAtTime(.5,t+.005); bg.gain.exponentialRampToValueAtTime(.001,t+.03);
+  burst.start(t); burst.stop(t+.04);
+  const osc = c.createOscillator(); osc.type='sawtooth';
+  osc.frequency.setValueAtTime(140,t); osc.frequency.linearRampToValueAtTime(110,t+.32);
+  const f1 = filt(c,'bandpass', 500, 6), f2 = filt(c,'bandpass', 1200, 8), f3 = filt(c,'bandpass', 2600, 9);
+  f1.frequency.setValueAtTime(kind==='d'?350:300, t+.01); f1.frequency.linearRampToValueAtTime(620, t+.07);
+  f2.frequency.setValueAtTime(kind==='d'?1900:1600, t+.01); f2.frequency.linearRampToValueAtTime(1150, t+.08);
+  f3.frequency.setValueAtTime(kind==='d'?2700:2000, t+.01); f3.frequency.linearRampToValueAtTime(2600, t+.08);
+  const vg = c.createGain(); vg.gain.setValueAtTime(0,t+.01); vg.gain.linearRampToValueAtTime(.35,t+.03); vg.gain.setValueAtTime(.35,t+.22); vg.gain.linearRampToValueAtTime(0,t+.36);
+  for (const f of [f1,f2,f3]) osc.connect(f).connect(vg);
+  vg.connect(out); osc.start(t); osc.stop(t+.4);
+  return wait(400);
+}
+// a voiceless t tap: short burst only
+function playT(){
+  const c = audio(), t = c.currentTime, burst = noise(), bg = c.createGain();
+  burst.connect(filt(c,'bandpass',4200,1)).connect(bg).connect(c.destination);
+  bg.gain.setValueAtTime(0,t); bg.gain.linearRampToValueAtTime(.5,t+.004); bg.gain.exponentialRampToValueAtTime(.001,t+.035);
+  burst.start(t); burst.stop(t+.05);
+}
+function playVoicedTh(dur=.9){
+  const c = audio(), t = c.currentTime;
+  const osc = c.createOscillator(); osc.type='sawtooth'; osc.frequency.value = 125;
+  const vg = c.createGain(); osc.connect(filt(c,'lowpass',700)).connect(vg).connect(c.destination);
+  vg.gain.setValueAtTime(0,t); vg.gain.linearRampToValueAtTime(.25,t+.06); vg.gain.setValueAtTime(.25,t+dur-.1); vg.gain.linearRampToValueAtTime(0,t+dur);
+  const n = noise(), ng = c.createGain(); n.connect(filt(c,'bandpass',1800,.35)).connect(filt(c,'lowpass',4500)).connect(ng).connect(c.destination);
+  ng.gain.setValueAtTime(0,t); ng.gain.linearRampToValueAtTime(.18,t+.06); ng.gain.setValueAtTime(.18,t+dur-.1); ng.gain.linearRampToValueAtTime(0,t+dur);
+  osc.start(t); osc.stop(t+dur+.05); n.start(t); n.stop(t+dur+.05);
+  return wait(dur*1000);
+}
+let readAloud = true;
+function pickVoice(){ const vs = speechSynthesis.getVoices(); return vs.find(v=>/en[-_]GB/i.test(v.lang) && /female|Libby|Sonia|Hazel|Susan|Kate/i.test(v.name)) || vs.find(v=>/en[-_]GB/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null; }
+function say(text, {force=false, rate=.92, onWord=null}={}){
+  if ((!readAloud && !force) || !('speechSynthesis' in window)) return Promise.resolve();
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang='en-GB'; u.rate=rate; u.pitch=1.15; const v = pickVoice(); if (v) u.voice = v;
+  if (onWord) u.onboundary = e => { if (e.name==='word' || e.charLength) onWord(e.charIndex); };
+  return new Promise(r => { u.onend = r; u.onerror = r; speechSynthesis.speak(u); setTimeout(r, 15000); });
+}
+
+/* ---------------- tap sequence for stops ---------------- */
+let seqToken = 0;
+async function taps(kind, times=3){
+  const tok = ++seqToken;
+  for (let i=0; i<times && tok===seqToken; i++){
+    setTongue(kind, .35); setAir(kind+'Trap'); voicedGoal = 1;
+    await wait(i===0 ? 900 : 600); if (tok!==seqToken) return;
+    setTongue(kind+'Rel', .18); setAir(kind+'Burst'); playStop(kind);
+    await wait(650);
+  }
+  if (tok===seqToken) voicedGoal = 0;
+}
+// long t: t-t-t then the S
+async function longT(){
+  const tok = ++seqToken; setAir(null);
+  for (let i=0;i<3 && tok===seqToken;i++){ setTongue('d', .15); await wait(160); if (tok!==seqToken) return; setTongue('dRel', .12); playT(); await wait(220); }
+  if (tok!==seqToken) return;
+  setTongue('s', .3); await wait(150); setAir('s'); await playFricative('s', 1.3);
+}
+// a word spoken with the tongue moving into and out of the S position at the right moment
+async function sayWord(w, pos){
+  const tok = ++seqToken; const spoken = w.replace('St. Kitts','Saint Kitts');
+  if (pos==='start' || pos==='blend'){ setTongue('s', .3); setAir('s'); await playFricative('s', .5); if (tok!==seqToken) return; setTongue('rest', .4); setAir(null); await say(spoken, {force:true, rate:.8}); }
+  else if (pos==='end'){ setTongue('rest', .3); setAir(null); await say(spoken, {force:true, rate:.8}); if (tok!==seqToken) return; setTongue('s', .3); setAir('s'); await playFricative('s', .7); }
+  else { setTongue('rest', .3); setAir(null); const p = say(spoken, {force:true, rate:.75}); await wait(250); if (tok!==seqToken) return; setTongue('s', .25); setAir('s'); await wait(350); setTongue('rest', .3); setAir(null); await p; }
+}
+
+/* ---------------- camera + cutaway ---------------- */
+const CAMS = {
+  front: { pos:[0, .05, 3.6],   tgt:[0, -.05, 0] },
+  side:  { pos:[-3.3, .1, .35], tgt:[0, -.1, .35] },
+  mouth: { pos:[-1.85, -.15, .45], tgt:[0, -.2, .45] },
+  mouthL:{ pos:[-1.85, -.15, .45], tgt:[0, -.2, .95] },   // mouth view shifted left, room for the practice panel
+};
+const camPos = new THREE.Vector3(...CAMS.front.pos), camTgt = new THREE.Vector3(...CAMS.front.tgt);
+let camGoal = CAMS.front;
+let cutT = 0, cutGoal = 0, glow = 0, glowGoal = 0;
+function applyCut(){
+  const k = ease(cutT);
+  goneG.position.x = -2.8*k; goneG.rotation.y = -.35*k;
+  goneG.visible = k < .999; mouthG.visible = cap.visible = k > .02;
+  goneG.traverse(o => { if (o.material){ o.material.opacity = 1-k; } });
+  centre.traverse(o => { if (o.material){ o.material.opacity = 1-Math.min(1,k*2); } });
+  centre.visible = k < .5;
+}
+
+/* ---------------- labels ---------------- */
+const LABELS = {
+  ridge:  { el: $('#lbl-ridge'),  p: new THREE.Vector3(.66, -.02, .2) },
+  back:   { el: $('#lbl-back'),   p: new THREE.Vector3(.20, .12, .2) },
+  teeth:  { el: $('#lbl-teeth'),  p: new THREE.Vector3(.79, -.17, .2) },
+  tongue: { el: $('#lbl-tongue'), p: new THREE.Vector3(.34, -.22, .2) },
+  air:    { el: $('#lbl-air'),    p: new THREE.Vector3(1.2, -.20, .2) },
+  voice:  { el: $('#lbl-voice'),  p: new THREE.Vector3(-.04, -.50, .2) },
+};
+let shownLabels = [];
+function showLabels(list){ shownLabels = list||[]; for (const k in LABELS) LABELS[k].el.classList.toggle('show', shownLabels.includes(k)); }
+const _w = new THREE.Vector3();
+function placeLabels(){ for (const k of shownLabels){ const L = LABELS[k]; mouthG.localToWorld(_w.copy(L.p)).project(camera); L.el.style.left = ((_w.x+1)/2*innerWidth)+'px'; L.el.style.top = ((1-_w.y)/2*innerHeight)+'px'; } }
+
+/* ---------------- Elijah's words ---------------- */
+// Photos live on this device only. A build can also bundle them (LOCAL_PHOTOS) for the laptop copy.
+const LOCAL_PHOTOS = false; // build.py sets this to false for the public site
+let STORED = {}; try { Object.assign(STORED, JSON.parse(localStorage.getItem('ecs-photos') || '{}') || {}); } catch(e){}
+const PH = n => STORED[n] || (LOCAL_PHOTOS ? 'photos/'+n+'.jpg' : null);
+const SLOTS = [['elijah-face','Elijah, front page'],['sia','Sia'],['shiloh','Shiloh'],['twins-uniform','Sia and Shiloh'],['twins-coats','Twins in coats'],['three-school','Elijah with the twins'],['elijah-school','Elijah at school'],['elijah-smile','Elijah smiling'],['elise-plane','Elise flying'],['starfish','Starfish'],['stkitts-pool','St. Kitts pool'],['swim-mummy','Swimming with Mummy'],['sun-mummy','Sun with Mummy']];
+function savePhotos(){ try { localStorage.setItem('ecs-photos', JSON.stringify(STORED)); return true; } catch(e){ alert('The tablet ran out of room for photos. Try smaller ones.'); return false; } }
+function fileToDataURL(file, max=640){ return new Promise(res => { const img = new Image(); const url = URL.createObjectURL(file); img.onload = () => { const k = Math.min(1, max/Math.max(img.width,img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width*k); c.height = Math.round(img.height*k); c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url); res(c.toDataURL('image/jpeg', .75)); }; img.onerror = () => res(null); img.src = url; }); }
+function renderHomeFace(){ const src = PH('elijah-face'); const img = $('#home-face img'); const letter = $('#home-face .letter'); if (src){ img.src = src; img.hidden = false; letter.hidden = true; } else { img.hidden = true; letter.hidden = false; } }
+function renderPhotoSlots(){
+  const el = $('#photo-slots'); if (!el) return; el.innerHTML = '';
+  for (const [key, label] of SLOTS){
+    const src = PH(key); const row = document.createElement('div'); row.style.cssText = 'display:flex;align-items:center;gap:10px;margin:6px 0';
+    row.innerHTML = `<div style="width:48px;height:48px;border-radius:10px;background:#f1e9da;overflow:hidden;flex-shrink:0">${src ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover">` : ''}</div><span style="flex:1;font-weight:700">${label}</span><label class="ghost small" style="background:#fff;border-radius:999px;padding:6px 12px;font-weight:900;font-size:13px;box-shadow:0 3px 0 #d9cdb8;cursor:pointer">Choose<input type="file" accept="image/*" hidden></label>`;
+    row.querySelector('input').onchange = async e => { const f = e.target.files[0]; if (!f) return; const d = await fileToDataURL(f); if (d){ STORED[key] = d; if (savePhotos()){ renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); } } };
+    el.appendChild(row);
+  }
+}
+const WORDS = {
+  start: [ {w:'Sia', p:'sia', e:'👧'}, {w:'sun', p:'sun-mummy', e:'☀️'}, {w:'sea', p:'starfish', e:'🌊'}, {w:'sock', e:'🧦'}, {w:'soup', e:'🍲'}, {w:'see', e:'👀'}, {w:'sand', e:'🏖️'}, {w:'six', e:'6️⃣'}, {w:'seven', e:'7️⃣'}, {w:'silly', e:'🤪'} ],
+  end:   [ {w:'Elise', p:'elise-plane', e:'✈️'}, {w:'bus', e:'🚌'}, {w:'house', e:'🏠'}, {w:'mouse', e:'🐭'}, {w:'yes', e:'👍'}, {w:'dress', e:'👗'}, {w:'glass', e:'🥛'}, {w:'horse', e:'🐴'}, {w:'kiss', e:'😘'}, {w:'miss', e:'🙋'}, {w:'boss', e:'👑'}, {w:'class', e:'🏫'}, {w:'grass', e:'🌱'} ],
+  mid:   [ {w:'messy', e:'🎨'}, {w:'castle', e:'🏰'}, {w:'outside', e:'🌳'}, {w:'dinosaur', e:'🦕'}, {w:'inside', e:'🚪'}, {w:'sunset', e:'🌅'}, {w:'whistle', e:'📣'}, {w:'basket', e:'🧺'}, {w:'lesson', e:'📚'} ],
+  blend: [ {w:'starfish', p:'starfish', e:'⭐'}, {w:'St. Kitts', p:'stkitts-pool', e:'🏝️'}, {w:'swimming', p:'swim-mummy', e:'🏊'}, {w:'sky', p:'elise-plane', e:'🌤️'}, {w:'school', p:'elijah-school', e:'🏫'}, {w:'smile', p:'elijah-smile', e:'😁'}, {w:'sisters', p:'three-school', e:'👭'}, {w:'sleep', e:'😴'}, {w:'spoon', e:'🥄'}, {w:'snake', e:'🐍'}, {w:'stop', e:'🛑'}, {w:'star', e:'⭐'}, {w:'strong', e:'💪'}, {w:'splash', e:'💦'} ],
+};
+// [brackets] mark the S words the listening game counts
+const SENTENCES = [
+  { t:'[Sia] and Shiloh are my [sisters].', p:'twins-uniform', e:'👭' },
+  { t:'Elijah [smiles] at [school].', p:'elijah-smile', e:'😁' },
+  { t:'[Elise] flies in the [sky].', p:'elise-plane', e:'✈️' },
+  { t:'I [swim] in the [sea] in [St. Kitts].', p:'swim-mummy', e:'🏊' },
+  { t:'Elijah found a [starfish] in the [sea].', p:'starfish', e:'⭐' },
+  { t:'The [sun] is hot in [St. Kitts].', p:'sun-mummy', e:'☀️' },
+  { t:'[Sia] and Shiloh [smile].', p:'twins-coats', e:'👭' },
+  { t:'Elijah has [six] [socks].', p:'three-school', e:'🧦' },
+  { t:'I [sleep] [so] I am [strong].', p:'stkitts-pool', e:'💪' },
+  { t:'[Jesus] loves me.', p:'elijah-school', e:'✝️' },
+  { t:'[Sia] [sits]. Shiloh [spins].', p:'sia', e:'👧' },
+];
+// colour every S (not the s in "sh")
+const markS = w => w.replace(/s(?!h)/gi, m => `<s>${m}</s>`);
+
+const TABS = [
+  ['long','Long S'], ['start','Start'], ['end','End'], ['mid','Middle'], ['blend','Together'], ['sent','Sentences']
+];
+let tab = 'long';
+function renderTabs(){
+  const el = $('#ptabs'); el.innerHTML = '';
+  for (const [id, name] of TABS){ const b = document.createElement('button'); b.textContent = name; b.className = id===tab ? 'on' : ''; b.onclick = () => { audio(); tab = id; renderTabs(); renderBody(); renderTally(); }; el.appendChild(b); }
+}
+function renderBody(){
+  const el = $('#pbody'); el.innerHTML = ''; $('#earbtn').hidden = true;
+  if (tab==='long'){
+    el.innerHTML = `<p class="hint">Teeth together, big smile, tongue in. Tap a trick, listen, then copy it. Tally every try below.</p>`;
+    const box = document.createElement('div'); box.className = 'tricks';
+    const mk = (txt, sub, cls, fn) => { const b = document.createElement('button'); b.className = cls; b.innerHTML = `<span>${txt}<small>${sub}</small></span>`; b.onclick = () => { audio(); fn(); }; box.appendChild(b); };
+    mk('t‑t‑t‑sssss', 'Long t: the tongue is already in the right place for a t', '', longT);
+    mk('Quiet S', 'A whisper S. Let the air do the work, no pushing', 'calm', () => { seqToken++; setTongue('s', .3); setAir('s'); playFricative('s', 1.4, .18); });
+    mk('Loud S', 'Now a big one. Same tongue, more air', '', () => { seqToken++; setTongue('s', .3); setAir('s'); playFricative('s', 1.4, .6); });
+    mk('Show me the wrong one', 'The tongue sneaking out, so I know what to fix', 'calm', () => { seqToken++; setTongue('th', .4); setAir('th'); playFricative('th', 1.2); });
+    el.appendChild(box);
+  } else if (tab==='sent'){
+    el.innerHTML = `<p class="hint">S ears! Tap 🔊 to hear the sentence. Tap the big green button every time you hear an S. Then see the S words light up.</p>`;
+    for (const S of SENTENCES){
+      const d = document.createElement('div'); d.className = 'sent';
+      const plain = S.t.replace(/[\[\]]/g, ''), n = (S.t.match(/\[/g)||[]).length;
+      const html = S.t.replace(/\[([^\]]+)\]/g, '<s>$1</s>');
+      const ssrc = PH(S.p);
+      d.innerHTML = (ssrc ? `<img src="${ssrc}" alt="">` : `<div style="width:74px;height:74px;border-radius:12px;background:#f3e9d6;display:grid;place-items:center;font-size:36px;flex-shrink:0">${S.e}</div>`) + `<div class="txt hid">${html}</div><div class="btns"><button class="small">🔊 Listen</button><button class="small ghost">🗣️ Say it</button></div>`;
+      const txt = d.querySelector('.txt'), [listen, sayBtn] = d.querySelectorAll('button');
+      listen.onclick = async () => {
+        audio(); const tok = ++seqToken; txt.classList.add('hid'); let heard = 0;
+        const eb = $('#earbtn'); eb.hidden = false; eb.textContent = '👂 I heard an S!';
+        eb.onclick = () => { heard++; eb.textContent = `👂 ${heard} S${heard===1?'':'s'}!`; };
+        setTongue('rest', .3); setAir(null);
+        await say(plain.replace('St. Kitts','Saint Kitts'), {force:true, rate:.82});
+        if (tok!==seqToken) return;
+        txt.classList.remove('hid'); eb.hidden = true;
+        $('#caption').textContent = n===heard ? `Yes! ${n} S word${n===1?'':'s'}. Good ears!` : `There were ${n} S word${n===1?'':'s'}. You heard ${heard}. Look for the orange ones.`;
+      };
+      sayBtn.onclick = async () => {
+        audio(); const tok = ++seqToken; txt.classList.remove('hid'); $('#caption').textContent = 'Slowly. Tongue in for every orange word.';
+        // character ranges of the S words inside the spoken text, so the tongue can pop up on each one
+        const spokenSrc = S.t.replace('St. Kitts','Saint Kitts'); const ranges = []; let idx = 0;
+        for (const piece of spokenSrc.split(/(\[[^\]]+\])/)){ if (piece.startsWith('[')){ ranges.push([idx, idx+piece.length-2]); idx += piece.length-2; } else idx += piece.length; }
+        setTongue('rest', .3); setAir(null);
+        await say(spokenSrc.replace(/[\[\]]/g, ''), {force:true, rate:.7, onWord: ci => {
+          if (tok!==seqToken) return;
+          if (ranges.some(([a,b]) => ci>=a && ci<b)){ setTongue('s', .12); setAir('s'); setTimeout(() => { if (tok===seqToken){ setTongue('rest', .25); setAir(null); } }, 420); }
+        }});
+        if (tok===seqToken){ setAir(null); setTongue('rest', .4); }
+      };
+      el.appendChild(d);
+    }
+  } else {
+    const hints = { start:'The S comes first, then the word: sss‑un.', end:'Say the word, then finish with the S: bu‑sss. Tongue back in at the end!', mid:'A quick S in the middle. Watch the tongue pop up and down.', blend:'Two sounds together. S first, then the next sound straight after.' };
+    el.innerHTML = `<p class="hint">${hints[tab]} Tap a card to hear the word.</p>`;
+    const grid = document.createElement('div'); grid.className = 'cards';
+    for (const W of WORDS[tab]){
+      const c = document.createElement('div'); c.className = 'wcard';
+      const src = W.p ? PH(W.p) : null;
+      c.innerHTML = (src ? `<img class="pic" src="${src}" alt="">` : `<div class="emo">${W.e}</div>`) + `<div class="w">${markS(W.w)}</div>`;
+      c.onclick = () => { audio(); $('#caption').innerHTML = markS(W.w).replace(/<s>/g,'<span style="color:var(--accent)">').replace(/<\/s>/g,'</span>'); sayWord(W.w, tab); };
+      grid.appendChild(c);
+    }
+    el.appendChild(grid);
+  }
+}
+
+/* ---------------- daily tally (per day, per tab) ---------------- */
+const dayKey = (d=new Date()) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+let LOG = {}; try { LOG = JSON.parse(localStorage.getItem('ecs-log')) || {}; } catch(e){}
+let TARGET = 30; try { TARGET = parseInt(localStorage.getItem('ecs-target')) || 30; } catch(e){}
+const blank = () => ({ok:0, near:0, no:0});
+function today(){ const k = dayKey(); LOG[k] ||= {}; return LOG[k]; }
+function tabTally(){ const t = today(); t[tab] ||= blank(); return t[tab]; }
+const dayOk = d => Object.values(d||{}).reduce((n,x) => n + (x.ok||0), 0);
+function saveLog(){ try { localStorage.setItem('ecs-log', JSON.stringify(LOG)); localStorage.setItem('ecs-target', String(TARGET)); } catch(e){} }
+let panelOpenedAt = 0, longSessionSaid = false, targetSaid = false;
+function renderTally(){
+  const ok = dayOk(today());
+  $('#today-n').textContent = ok; $('#home-n').textContent = ok; $('#today-target').textContent = TARGET; $('#home-target').textContent = TARGET;
+  $('#today-bar').style.width = Math.min(100, ok/TARGET*100) + '%';
+  const t = tabTally(), tot = t.ok+t.near+t.no;
+  $('#tab-pct').textContent = tot ? `${Math.round(t.ok/tot*100)}% here` : '';
+  $('#tab-pct').style.color = tot>=10 && t.ok/tot>=.8 ? 'var(--good)' : '#6b6478';
+  saveLog(); renderHistory();
+}
+function renderHistory(){
+  const el = $('#history'); if (!el) return;
+  const names = {long:'Long S', start:'Start', end:'End', mid:'Middle', blend:'Together', sent:'Sentences'};
+  let html = '<div style="overflow-x:auto"><table style="border-collapse:collapse;width:100%;font-size:14px"><tr><th style="text-align:left;padding:4px">Day</th>' + Object.values(names).map(n => `<th style="padding:4px">${n}</th>`).join('') + '<th style="padding:4px">Clear</th></tr>';
+  for (let i=6;i>=0;i--){
+    const d = new Date(); d.setDate(d.getDate()-i); const k = dayKey(d), day = LOG[k]||{};
+    html += `<tr><td style="padding:4px;font-weight:800;white-space:nowrap">${i===0?'Today':d.toLocaleDateString('en-GB',{weekday:'short', day:'numeric'})}</td>`;
+    for (const key of Object.keys(names)){ const x = day[key]; const tot = x ? x.ok+x.near+x.no : 0; const pct = tot ? Math.round(x.ok/tot*100) : null;
+      html += `<td style="padding:4px;text-align:center;white-space:nowrap;${pct!==null && pct>=80 && tot>=10 ? 'color:#1f9a52;font-weight:800' : ''}">${tot ? `${x.ok}/${tot} · ${pct}%` : '–'}</td>`; }
+    html += `<td style="padding:4px;text-align:center;font-weight:800">${dayOk(day)}</td></tr>`;
+  }
+  el.innerHTML = html + '</table></div><p style="font-size:13px;color:#6b6478;margin:6px 0 0">Green = 80% or better over at least 10 tries, the usual bar for moving up a rung.</p>';
+}
+const praise = ['You kept your tongue in. That\'s the S sound!', 'Thin cold air. That\'s it!', 'Teeth together, tongue in. Yes!', 'That was a clear S!'];
+function afterTry(){
+  const ok = dayOk(today());
+  if (ok >= TARGET && !targetSaid){ targetSaid = true; $('#caption').textContent = `${TARGET} today, Elijah! Three more, then stop. Sticker time!`; return true; }
+  if (panelOpenedAt && !longSessionSaid && performance.now()-panelOpenedAt > 15*60*1000){ longSessionSaid = true; $('#caption').textContent = 'Fifteen minutes. Do three more good ones and finish there.'; return true; }
+  return false;
+}
+$('#t-ok').onclick = () => { audio(); const t = tabTally(); t.ok++; renderTally(); if (!afterTry()) $('#caption').textContent = praise[t.ok % praise.length]; };
+$('#t-near').onclick = () => { audio(); tabTally().near++; renderTally(); if (!afterTry()) $('#caption').textContent = 'Nearly. Is the tongue peeking? Tuck it in and try a quiet one.'; };
+$('#t-no').onclick = () => { audio(); tabTally().no++; renderTally(); if (!afterTry()) $('#caption').textContent = 'Not yet. Try the long t: t‑t‑t‑sss.'; };
+
+/* ---------------- lessons ---------------- */
+const LESSONS = {
+  s: {
+    name:'S Sound', sub:'How to say “sss”',
+    good:'✅ Tongue behind teeth', bad:'❌ Tongue between teeth',
+    onGood: () => { setTongue('s'); setAir('s'); showLabels(['air']); playFricative('s', 1.6); },
+    onBad:  () => { setTongue('th'); setAir('th'); showLabels([]); playFricative('th', 1.4); },
+    words: [],
+    grown: `<h3>The /s/ lesson</h3><ul>
+      <li><b>Target /s/</b>: tongue tip down, resting behind the lower front teeth; the blade lifts towards the ridge leaving a narrow central groove; teeth almost together; a fast narrow jet of air passes through the groove and over the teeth. Voiceless.</li>
+      <li>The sides of the tongue should brace against the upper side teeth. That cannot be seen in a midline view, so it is only said in the caption.</li>
+      <li><b>Interdental error</b>: the tongue tip pushes between the front teeth, the air spreads out, and it sounds like “th”. The therapist has asked to keep this step.</li>
+      <li>Some therapists teach /s/ tip-up, just behind the ridge. Both are normal. Tell us which target you use and the model can be switched.</li>
+      <li>Practice positions: Long S, Start (sun), End (bus), Middle (messy), Together (st, sp, sn, sm, sk, sl, sw), Sentences (listening now, saying later). The tally is kept per tab per day.</li></ul>`,
+    steps: [
+      { cam:'front', cut:0, tongue:'rest', text:`Hi ${CHILD}! Let's do the S sound… sssss!`, min:3.2, after: () => playFricative('s', 1.2) },
+      { cam:'side',  cut:1, tongue:'rest', text:"Let's look inside your mouth!", min:3.5 },
+      { cam:'mouth', cut:1, tongue:'rest', glow:'ridge', labels:['ridge','teeth','tongue'], text:"Feel behind your top teeth with your tongue. There's a bumpy ridge!", min:4 },
+      { cam:'mouth', cut:1, tongue:'s', glow:'ridge', labels:['ridge'], text:"Keep your tongue tip behind your teeth. Lift the middle of your tongue up close to the ridge. Leave a tiny gap!", min:5 },
+      { cam:'mouth', cut:1, tongue:'s', air:'s', labels:['air'], badge:'✅', text:"Now blow! The air squeezes through the tiny gap… sssssss!", min:3, after: () => playFricative('s', 2) },
+      { cam:'mouth', cut:1, tongue:'th', air:'th', badge:'❌', text:"Uh‑oh! If the tongue sneaks out between the teeth, the air spills everywhere. It sounds like “th”. Tuck it back in!", min:3, after: () => playFricative('th', 1.6) },
+      { cam:'mouth', cut:1, tongue:'s', air:'s', compare:true, text:"Which one makes the S sound? Tap to try both!", min:2 },
+      { cam:'mouthL', cut:1, tongue:'s', air:'s', panel:true, text:`Your turn, ${CHILD}! Long S first, then Sia, sun and sea.`, min:2 },
+    ],
+  },
+  d: {
+    name:'D Sound', sub:'How to say “d”',
+    good:'✅ Tip taps the ridge', bad:'❌ Tongue between teeth',
+    onGood: () => { showLabels(['voice']); taps('d', 2); },
+    onBad:  () => { seqToken++; voicedGoal = 1; setTongue('th', .5); setAir('th'); showLabels([]); playVoicedTh(1.1).then(() => voicedGoal = 0); },
+    words: [['d', () => taps('d', 1)], ...['dog','duck','door','dinosaur'].map(w => [w, async () => { await taps('d', 1); await say(w, {force:true, rate:.8}); }])],
+    grown: `<h3>The /d/ lesson</h3><ul>
+      <li><b>Target /d/</b>: a voiced alveolar stop. The tongue tip presses against the alveolar ridge, pressure builds, then the tip drops and the air is released with a small burst. The vocal folds vibrate (the purple “voice buzz”).</li>
+      <li><b>Error shown</b>: tongue tip between or against the front teeth. Other common errors are backing (/d/ like /g/) and nasalising (/d/ like /n/). Tell us which one you hear.</li></ul>`,
+    steps: [
+      { cam:'front', cut:0, tongue:'rest', text:`Hi ${CHILD}! Let's do the D sound… d! d! d!`, min:3.5, after: async () => { await playStop('d'); await wait(250); await playStop('d'); await wait(250); await playStop('d'); } },
+      { cam:'side',  cut:1, tongue:'rest', text:"Let's look inside your mouth!", min:3.5 },
+      { cam:'mouth', cut:1, tongue:'rest', glow:'ridge', labels:['ridge','teeth','tongue'], text:"Find the bumpy ridge behind your top teeth. That's where your tongue tip will tap!", min:4 },
+      { cam:'mouth', cut:1, tongue:'d', air:'dTrap', glow:'ridge', labels:['ridge','air'], text:"Lift your tongue tip up and press it on the bumpy ridge. Now the air is stuck behind your tongue!", min:5 },
+      { cam:'mouth', cut:1, tongue:'d', air:'dTrap', labels:['voice'], badge:'✅', voiced:true, text:"Turn your voice on… feel the buzz in your neck… and let go! d! d! d!", min:5, after: () => taps('d', 3) },
+      { cam:'mouth', cut:1, tongue:'th', air:'th', badge:'❌', voiced:true, text:"Uh‑oh! If the tongue sneaks out between the teeth, it sounds mushy, like “th”. Keep it inside!", min:3.5, after: () => playVoicedTh(1.2) },
+      { cam:'mouth', cut:1, tongue:'d', air:'dTrap', compare:true, text:"Which one makes the D sound? Tap to try both!", min:2 },
+      { cam:'mouth', cut:1, tongue:'d', air:'dTrap', practice:true, text:"Your turn! Tip up, press the ridge, voice on, let go: d! Tap a word to hear it.", min:2 },
+    ],
+  },
+  g: {
+    name:'G Sound', sub:'How to say “g”',
+    good:'✅ Back of tongue lifts', bad:'❌ Tip taps the front',
+    onGood: () => { showLabels(['voice']); taps('g', 2); },
+    onBad:  () => { showLabels([]); taps('d', 2); },
+    words: [['g', () => taps('g', 1)], ...['go','goat','gate','game'].map(w => [w, async () => { await taps('g', 1); await say(w, {force:true, rate:.8}); }])],
+    grown: `<h3>The /g/ lesson</h3><ul>
+      <li><b>Target /g/</b>: a voiced velar stop. Tongue tip stays down behind the lower front teeth; the back of the tongue lifts to seal against the soft palate, pressure builds, then the back drops. Voiced.</li>
+      <li><b>Error shown</b>: fronting, where the tip taps the ridge instead, so “g” comes out as “d”.</li></ul>`,
+    steps: [
+      { cam:'front', cut:0, tongue:'rest', text:`Hi ${CHILD}! Let's do the G sound… g! g! g!`, min:3.5, after: async () => { await playStop('g'); await wait(250); await playStop('g'); await wait(250); await playStop('g'); } },
+      { cam:'side',  cut:1, tongue:'rest', text:"Let's look inside your mouth!", min:3.5 },
+      { cam:'mouth', cut:1, tongue:'rest', glow:'velum', labels:['back','tongue','teeth'], text:"Right at the back of your mouth, the roof goes soft and squishy. That's where the G sound lives!", min:4.5 },
+      { cam:'mouth', cut:1, tongue:'g', air:'gTrap', glow:'velum', labels:['back','air'], text:"Keep your tongue tip DOWN behind your bottom teeth. Lift the BACK of your tongue up to the squishy part. The air is stuck!", min:5.5 },
+      { cam:'mouth', cut:1, tongue:'g', air:'gTrap', labels:['voice'], badge:'✅', voiced:true, text:"Voice on… feel the buzz… and let go! g! g! g!", min:5, after: () => taps('g', 3) },
+      { cam:'mouth', cut:1, tongue:'d', air:'dTrap', badge:'❌', voiced:true, text:"Uh‑oh! If your tongue tip taps the front instead, it sounds like “d”. Keep the tip down and use the back!", min:4, after: () => taps('d', 2) },
+      { cam:'mouth', cut:1, tongue:'g', air:'gTrap', compare:true, text:"Which one makes the G sound? Tap to try both!", min:2 },
+      { cam:'mouth', cut:1, tongue:'g', air:'gTrap', practice:true, text:"Your turn! Tip down, back up, voice on, let go: g! Tap a word to hear it.", min:2 },
+    ],
+  },
+};
+
+/* ---------------- story engine ---------------- */
+let lesson = null, STEPS = [], step = -1, playing = false, playToken = 0, stepToken = 0;
+const dots = $('#dots');
+function loadLesson(id){
+  lesson = LESSONS[id]; STEPS = lesson.steps;
+  $('#t-name').textContent = lesson.name; $('#t-sub').textContent = lesson.sub;
+  $('#cmp-good').textContent = lesson.good; $('#cmp-bad').textContent = lesson.bad;
+  $('#grown-lesson').innerHTML = lesson.grown;
+  dots.innerHTML = ''; STEPS.forEach(() => dots.appendChild(document.createElement('i')));
+  const pr = $('#practice'); pr.innerHTML = '';
+  for (const [w, fn] of lesson.words){ const b = document.createElement('button'); b.className = 'word'; b.innerHTML = w.length<=3 ? `<b>${w}</b>` : `<b>${w[0]}</b>${w.slice(1)}`; b.onclick = () => { audio(); fn(); }; pr.appendChild(b); }
+  $('#home').hidden = true;
+  try { history.replaceState(null, '', '?sound='+id); } catch(e) {}
+  goStep(0, {speak:false});
+}
+function goStep(i, {speak=true}={}){
+  seqToken++; voicedGoal = 0;
+  step = clamp(i, 0, STEPS.length-1);
+  const S = STEPS[step];
+  camGoal = CAMS[S.cam]; cutGoal = S.cut;
+  if (S.glow){ glowGoal = 1; glowRing.position.set(GLOW_AT[S.glow][0], GLOW_AT[S.glow][1], .19); } else glowGoal = 0;
+  setTongue(S.tongue); setAir(S.air||null);
+  showLabels(S.labels);
+  if (S.voiced) voicedGoal = 1;
+  $('#caption').textContent = S.text;
+  const b = $('#badge'); b.textContent = S.badge||''; b.classList.toggle('show', !!S.badge);
+  $('#compare').hidden = !S.compare; $('#practice').hidden = !S.practice;
+  $('#ppanel').hidden = !S.panel; $('#earbtn').hidden = true;
+  if (S.panel){ tab = 'long'; renderTabs(); renderBody(); renderTally(); panelOpenedAt = performance.now(); longSessionSaid = false; targetSaid = false; }
+  $('#back').disabled = step===0; $('#next').disabled = step===STEPS.length-1;
+  [...dots.children].forEach((d,j) => { d.classList.toggle('on', j===step); d.classList.toggle('done', j<step); });
+  const myTok = ++stepToken;
+  if (speak) return say(S.text).then(() => { if (myTok===stepToken && S.after) return S.after(); });
+}
+async function playFrom(i){
+  playing = true; const tok = ++playToken; $('#play').textContent = '⏸ Pause';
+  for (let k=i; k<STEPS.length && tok===playToken; k++){
+    const S = STEPS[k]; const t0 = performance.now();
+    await goStep(k); if (tok!==playToken) break;
+    const left = S.min*1000 - (performance.now()-t0); if (left>0) await wait(left);
+    if (S.compare || S.practice || S.panel) break;
+  }
+  if (tok===playToken){ playing = false; $('#play').textContent = '▶ Play'; }
+}
+function stopPlaying(){ playToken++; playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); $('#play').textContent = '▶ Play'; }
+
+$('#play').onclick = () => { audio(); playing ? stopPlaying() : playFrom(step<0 || step>=STEPS.length-1 ? 0 : step); };
+$('#next').onclick = () => { audio(); stopPlaying(); goStep(step+1); };
+$('#back').onclick = () => { audio(); stopPlaying(); goStep(step-1); };
+$('#cmp-good').onclick = () => { audio(); seqToken++; $('#badge').textContent='✅'; $('#badge').classList.add('show'); lesson.onGood(); };
+$('#cmp-bad').onclick  = () => { audio(); seqToken++; $('#badge').textContent='❌'; $('#badge').classList.add('show'); lesson.onBad(); };
+$('#voice-btn').onclick = () => { readAloud = !readAloud; if (!readAloud) speechSynthesis.cancel(); $('#voice-btn').textContent = '🔊 Read aloud: ' + (readAloud?'on':'off'); };
+{ let holdT = null; const gb = $('#grown-btn');
+  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); $('#grown').classList.add('open'); }, 1500); };
+  const stop = () => { clearTimeout(holdT); gb.textContent = 'ℹ️ Grown-ups (hold)'; };
+  gb.addEventListener('pointerdown', start); gb.addEventListener('pointerup', stop); gb.addEventListener('pointerleave', stop); gb.addEventListener('pointercancel', stop); }
+$('#pack-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const pack = JSON.parse(await f.text()); let n = 0; for (const k in pack){ if (typeof pack[k]==='string' && pack[k].startsWith('data:image')){ STORED[k] = pack[k]; n++; } } if (savePhotos()){ renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); alert(n + ' photos added.'); } } catch(err){ alert('That file is not a photo pack.'); } };
+$('#photos-clear').onclick = () => { if (confirm('Remove all photos from this tablet?')){ STORED = {}; savePhotos(); renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); } };
+$('#target-in').onchange = () => { TARGET = clamp(parseInt($('#target-in').value)||30, 5, 200); $('#target-in').value = TARGET; renderTally(); };
+$('#grown-close').onclick = () => $('#grown').classList.remove('open');
+$('#grown').addEventListener('click', e => { if (e.target.id==='grown') $('#grown').classList.remove('open'); });
+$('#home-btn').onclick = () => { stopPlaying(); seqToken++; voicedGoal = 0; $('#ppanel').hidden = true; $('#earbtn').hidden = true; $('#home').hidden = false; renderTally(); try { history.replaceState(null, '', location.pathname); } catch(e) {} };
+document.querySelectorAll('.lesson').forEach(el => el.onclick = () => { audio(); loadLesson(el.dataset.sound); });
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {};
+
+/* ---------------- loop ---------------- */
+let last = performance.now(), idle = 0;
+const _g = new THREE.Vector3();
+function frame(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now; idle += dt;
+  const k = 1-Math.exp(-dt*2.6);
+  camPos.lerp(_g.set(...camGoal.pos), k); camTgt.lerp(_g.set(...camGoal.tgt), k);
+  camera.position.copy(camPos); camera.lookAt(camTgt);
+  const cprev = cutT; cutT += (cutGoal-cutT)*(1-Math.exp(-dt*2.2)); if (Math.abs(cutT-cutGoal)<.002) cutT=cutGoal; if (cutT!==cprev) applyCut();
+  if (tongueT < 1){ tongueT = Math.min(1, tongueT + dt/tongueDur); rebuildTongue(currentTonguePts()); }
+  glow += (glowGoal-glow)*(1-Math.exp(-dt*4));
+  glowRing.material.opacity = glow*(.55+.45*Math.sin(idle*5)); const gs = 1+glow*.25*Math.sin(idle*5); glowRing.scale.set(gs,gs,1);
+  voiced += (voicedGoal-voiced)*(1-Math.exp(-dt*6));
+  ripples.forEach((r,i) => { const ph = (idle*1.4 + i/3) % 1; const s = 1+ph*3.5; r.scale.set(s,s,1); r.material.opacity = voiced*(1-ph)*.9; });
+  voiceG.children[0].scale.setScalar(1 + voiced*.25*Math.sin(idle*40));
+  const bob = Math.sin(idle*1.3)*.012;
+  keepG.position.y = goneG.position.y = centre.position.y = cap.position.y = mouthG.position.y = bob;
+  updateAir(dt); placeLabels();
+  renderer.render(scene, camera);
+}
+applyCut();
+renderer.setAnimationLoop(frame);
+addEventListener('resize', () => { camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+renderTally(); renderHomeFace();
+// offline app shell when hosted on a normal website (not inside the Claude artifact frame)
+if ('serviceWorker' in navigator && location.protocol==='https:' && !/claudeusercontent|claude\.ai/.test(location.hostname)) navigator.serviceWorker.register('sw.js').catch(()=>{});
+const want = new URLSearchParams(location.search).get('sound');
+if (LESSONS[want]) loadLesson(want); else $('#home').hidden = false;
+$('#loading').remove();
+</script>
+</body>
+</html>
