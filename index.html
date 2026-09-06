@@ -197,6 +197,9 @@
     <h3>Voice</h3>
     <p>The reading voice comes from this device's own text-to-speech. Pick one that sounds right, choose a speed, and test it. British female voices are chosen automatically when the device has one, and iPhones and iPads start on Slow because their voices run faster.</p>
     <p style="display:flex;gap:10px;flex-wrap:wrap;align-items:center"><select id="voice-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf;max-width:100%"></select><select id="rate-sel" style="font:inherit;font-weight:800;padding:6px 10px;border-radius:8px;border:2px solid #e2d5bf"><option value=".6">Slowest</option><option value=".72">Slow</option><option value=".85">Medium</option><option value="1">Normal</option></select><button class="ghost small" id="voice-test">🔊 Test voice</button><span id="voice-now" style="font-size:13px;color:#6b6478"></span></p>
+    <h3>Your voice</h3>
+    <p>Record the app's lines in your own voice. Recordings stay on this device; export a voice pack and import it on the tablet. Where a line is recorded, the app plays you instead of the computer voice, which also fixes browsers with no voice at all.</p>
+    <div id="recorder"></div>
     <h3>Photos on this device</h3>
     <p>Photos are kept on this tablet only and never uploaded. Choose one for each slot, or import the photo pack file in one go.</p>
     <div id="photo-slots"></div>
@@ -368,7 +371,7 @@ function updateAir(dt){
 
 /* ---------------- sounds ---------------- */
 let actx;
-function audio(){ if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); if (actx.state==='suspended') actx.resume(); return actx; }
+function audio(){ if (!actx) actx = new (window.AudioContext||window.webkitAudioContext)(); if (actx.state==='suspended') actx.resume(); unlockClips(); return actx; }
 let noiseBuf;
 function noise(){ const c = audio(); if (!noiseBuf){ noiseBuf = c.createBuffer(1, c.sampleRate*2, c.sampleRate); const d = noiseBuf.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; } const s = c.createBufferSource(); s.buffer = noiseBuf; s.loop = true; return s; }
 const filt = (c, type, f, q=1) => { const b = c.createBiquadFilter(); b.type=type; b.frequency.value=f; b.Q.value=q; return b; };
@@ -432,7 +435,7 @@ function renderVoices(){
   const sel = $('#voice-sel'); if (!sel || !('speechSynthesis' in window)) return;
   const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); const cur = pickVoice();
   sel.innerHTML = '<option value="">Automatic</option>' + vs.map(v => `<option value="${v.name.replace(/"/g,'&quot;')}"${VOICE_PICK===v.name?' selected':''}>${v.name} (${v.lang})</option>`).join('');
-  $('#voice-now').textContent = cur ? `Using: ${cur.name}` : 'No English voices found on this device.';
+  $('#voice-now').textContent = cur ? `Using: ${cur.name}` : 'No reading voice on this device. Use recordings (below).';
 }
 // Reading speed. Apple voices run faster than the others at the same setting, so they start slower.
 const IS_APPLE = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
@@ -443,15 +446,48 @@ function speakRaw(text, {speed=1, onWord=null, offset=0}={}){
   if (onWord) u.onboundary = e => { if (e.name==='word' || e.charLength) onWord(e.charIndex + offset); };
   return new Promise(r => { u.onend = r; u.onerror = r; speechSynthesis.speak(u); setTimeout(r, 15000); });
 }
-// "sss" in a caption is played as a real hiss, never read out as letters
+/* ---------------- recorded voice (Mummy's) ---------------- */
+// Recordings live in this device's IndexedDB, keyed by the line's text. They can be exported as a voice pack.
+const norm = t => t.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const idb = {
+  db: null,
+  open(){ return this.db || (this.db = new Promise((res, rej) => { if (!('indexedDB' in window)) return rej(); const r = indexedDB.open('ecs', 1); r.onupgradeneeded = () => r.result.createObjectStore('clips'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); })); },
+  async get(k){ try { const db = await this.open(); return await new Promise(res => { const q = db.transaction('clips').objectStore('clips').get(k); q.onsuccess = () => res(q.result || null); q.onerror = () => res(null); }); } catch(e){ return null; } },
+  async put(k, v){ try { const db = await this.open(); await new Promise(res => { const tx = db.transaction('clips', 'readwrite'); tx.objectStore('clips').put(v, k); tx.oncomplete = res; tx.onerror = res; }); CLIPS.add(k); } catch(e){} },
+  async del(k){ try { const db = await this.open(); await new Promise(res => { const tx = db.transaction('clips', 'readwrite'); tx.objectStore('clips').delete(k); tx.oncomplete = res; tx.onerror = res; }); CLIPS.delete(k); } catch(e){} },
+  async clear(){ try { const db = await this.open(); await new Promise(res => { const tx = db.transaction('clips', 'readwrite'); tx.objectStore('clips').clear(); tx.oncomplete = res; tx.onerror = res; }); CLIPS.clear(); } catch(e){} },
+  async all(){ try { const db = await this.open(); return await new Promise(res => { const out = {}; const q = db.transaction('clips').objectStore('clips').openCursor(); q.onsuccess = () => { const c = q.result; if (c){ out[c.key] = c.value; c.continue(); } else res(out); }; q.onerror = () => res(out); }); } catch(e){ return {}; } },
+};
+const CLIPS = new Set();
+idb.all().then(all => { for (const k in all) if (all[k] && all[k].size) CLIPS.add(k); }).catch(()=>{});
+const clipPlayer = new Audio(); let clipUnlocked = false;
+function unlockClips(){ if (clipUnlocked) return; clipUnlocked = true; try { clipPlayer.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA='; clipPlayer.play().catch(()=>{}); } catch(e){} }
+function playClip(blob){
+  return new Promise(res => {
+    const url = URL.createObjectURL(blob); clipPlayer.src = url;
+    const done = () => { clipPlayer.onended = clipPlayer.onerror = null; URL.revokeObjectURL(url); res(); };
+    clipPlayer.onended = done; clipPlayer.onerror = done; clipPlayer.play().catch(done);
+    setTimeout(done, 15000);
+  });
+}
+const hasVoice = () => ('speechSynthesis' in window) && speechSynthesis.getVoices().length > 0;
+
+// Each spoken line: a recording of it if there is one, else the device's reading voice.
+// "sss" in a caption is played as a real hiss, never read out as letters.
 async function say(text, {force=false, speed=1, onWord=null}={}){
-  if ((!readAloud && !force) || !('speechSynthesis' in window)) return;
-  speechSynthesis.cancel(); const myTok = ++sayToken;
+  if (!readAloud && !force) return;
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
+  clipPlayer.pause(); const myTok = ++sayToken;
   let offset = 0;
   for (const part of text.split(/([sS]{3,})/)){
     if (myTok!==sayToken) return;
     if (/^[sS]{3,}$/.test(part)) await playFricative('s', Math.min(1.6, .35*part.length));
-    else await speakRaw(part, {speed, onWord, offset});
+    else if (/[a-z0-9]/i.test(part)){
+      const key = norm(part); const clip = CLIPS.has(key) ? await idb.get(key) : null;
+      if (myTok!==sayToken) return;
+      if (clip && clip.size) await playClip(clip);
+      else if ('speechSynthesis' in window) await speakRaw(part, {speed, onWord, offset});
+    }
     offset += part.length;
   }
 }
@@ -735,6 +771,60 @@ const LESSONS = {
   },
 };
 
+/* ---------------- recording page ---------------- */
+// Every line the app can speak, in the order a parent would record them
+function allLines(){
+  const out = [], seen = new Set();
+  const add = (spoken, shown) => { for (const part of spoken.split(/[sS]{3,}/)){ const t = part.replace(/^[\s…!.,]+|[\s…!.,]+$/g, ''); if (!/[a-z0-9]/i.test(t)) continue; const k = norm(t); if (seen.has(k)) continue; seen.add(k); out.push({key:k, text:t}); } };
+  add("Hi Elijah! Let's do the S sound. Sssss. Sia sees the sun.");
+  for (const id of ['s','d','g']) for (const st of LESSONS[id].steps) add(st.text);
+  for (const pos of ['start','end','mid','blend']) for (const W of WORDS[pos]) add(W.w.replace('St. Kitts','Saint Kitts'));
+  for (const w of ['d','dog','duck','door','dinosaur','g','go','goat','gate','game']) add(w);
+  for (const S of SENTENCES) add(S.t.replace(/[\[\]]/g, '').replace('St. Kitts','Saint Kitts'));
+  return out;
+}
+let rec = null, recStream = null, recKey = null;
+function recMime(){ for (const m of ['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg;codecs=opus']) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; return ''; }
+async function startRec(key){
+  if (!window.MediaRecorder) { alert('This browser cannot record. Record on the laptop or phone and import the voice pack here.'); return false; }
+  try { recStream = recStream || await navigator.mediaDevices.getUserMedia({audio:true}); } catch(e){ alert('Microphone permission is needed to record.'); return false; }
+  const chunks = []; const mime = recMime();
+  rec = new MediaRecorder(recStream, mime ? {mimeType: mime} : undefined); recKey = key;
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => { const blob = new Blob(chunks, {type: rec.mimeType || mime || 'audio/webm'}); if (blob.size > 200) await idb.put(recKey, blob); rec = null; renderRecorder(); };
+  rec.start(); renderRecorder(); return true;
+}
+function stopRec(){ if (rec && rec.state !== 'inactive') rec.stop(); }
+function renderRecorder(){
+  const el = $('#recorder'); if (!el) return;
+  const lines = allLines(); const done = lines.filter(l => CLIPS.has(l.key)).length;
+  const next = lines.find(l => !CLIPS.has(l.key));
+  let html = `<p><b>${done} of ${lines.length}</b> lines recorded. ${hasVoice() ? 'Recorded lines are used instead of the computer voice.' : '<b>This device has no reading voice, so only recorded lines will be spoken.</b>'}</p>`;
+  html += `<div id="quick" style="background:#fff7e6;border-radius:16px;padding:14px 16px;margin:8px 0 12px">`;
+  if (rec){ html += `<div style="font-size:13px;font-weight:900;color:#c94141;letter-spacing:.08em">● RECORDING</div><div style="font-size:20px;font-weight:800;margin:6px 0 10px">${lines.find(l=>l.key===recKey)?.text || ''}</div><button id="rec-stop" style="background:#c94141;box-shadow:0 5px 0 #8f2b2b">■ Stop and save</button>`; }
+  else if (next){ html += `<div style="font-size:13px;font-weight:900;color:#c9651f;letter-spacing:.08em">NEXT LINE</div><div style="font-size:20px;font-weight:800;margin:6px 0 10px">${next.text}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="rec-next" style="background:#c94141;box-shadow:0 5px 0 #8f2b2b">● Record this line</button><button class="ghost small" id="rec-skip">Skip</button></div><p style="font-size:13px;color:#6b6478;margin:8px 0 0">Tap Record, say the line warmly, tap Stop. Sam's old words like "sss" are already handled by the app, so just say the words.</p>`; }
+  else html += `<div style="font-size:18px;font-weight:800">All lines recorded. Export the voice pack below and import it on the tablet.</div>`;
+  html += `</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><button class="ghost small" id="voice-export">Export voice pack</button><label class="ghost small" style="background:#fff;border-radius:999px;padding:8px 14px;font-weight:900;font-size:14px;box-shadow:0 4px 0 #d9cdb8;cursor:pointer">Import voice pack<input type="file" id="voice-in" accept=".json,application/json" hidden></label><button class="ghost small" id="voice-clear">Delete all recordings</button></div>`;
+  html += `<details><summary style="font-weight:800;cursor:pointer">All lines (re-record or listen)</summary><div style="max-height:260px;overflow:auto;margin-top:8px">`;
+  for (const l of lines) html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-top:1px solid #f1e9da"><span style="width:18px">${CLIPS.has(l.key)?'✅':''}</span><span style="flex:1;font-size:14px">${l.text}</span><button class="ghost small" data-play="${l.key}" ${CLIPS.has(l.key)?'':'disabled'}>▶</button><button class="ghost small" data-rec="${l.key}">●</button></div>`;
+  html += `</div></details>`;
+  el.innerHTML = html;
+  const skip = new Set(JSON.parse(sessionStorage.getItem('ecs-skip')||'[]'));
+  $('#rec-next') && ($('#rec-next').onclick = () => startRec(next.key));
+  $('#rec-stop') && ($('#rec-stop').onclick = stopRec);
+  $('#rec-skip') && ($('#rec-skip').onclick = async () => { await idb.put(next.key, new Blob([], {type:'audio/webm'})); CLIPS.delete(next.key); skip.add(next.key); sessionStorage.setItem('ecs-skip', JSON.stringify([...skip])); renderRecorder(); });
+  el.querySelectorAll('[data-play]').forEach(b => b.onclick = async () => { unlockClips(); const c = await idb.get(b.dataset.play); if (c) playClip(c); });
+  el.querySelectorAll('[data-rec]').forEach(b => b.onclick = () => startRec(b.dataset.rec));
+  $('#voice-export').onclick = async () => {
+    const all = await idb.all(); const pack = {}; let n = 0;
+    for (const k in all){ const b = all[k]; if (!b || !b.size) continue; const buf = await b.arrayBuffer(); let bin = ''; const bytes = new Uint8Array(buf); for (let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]); pack[k] = {t: b.type, b: btoa(bin)}; n++; }
+    const blob = new Blob([JSON.stringify(pack)], {type:'application/json'}); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'elijah-voice.json'; document.body.appendChild(a); a.click(); a.remove();
+    alert(n + ' recordings exported to elijah-voice.json.');
+  };
+  $('#voice-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const pack = JSON.parse(await f.text()); let n = 0; for (const k in pack){ const {t, b} = pack[k]; const bin = atob(b); const bytes = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i); await idb.put(k, new Blob([bytes], {type: t || 'audio/webm'})); n++; } alert(n + ' recordings added.'); renderRecorder(); } catch(err){ alert('That file is not a voice pack.'); } };
+  $('#voice-clear').onclick = async () => { if (confirm('Delete every recording on this device?')){ await idb.clear(); renderRecorder(); } };
+}
+
 /* ---------------- story engine ---------------- */
 let lesson = null, STEPS = [], step = -1, playing = false, playToken = 0, stepToken = 0;
 const dots = $('#dots');
@@ -779,7 +869,7 @@ async function playFrom(i){
   }
   if (tok===playToken){ playing = false; $('#play').textContent = '▶ Play'; }
 }
-function stopPlaying(){ playToken++; playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); $('#play').textContent = '▶ Play'; }
+function stopPlaying(){ playToken++; sayToken++; playing = false; if ('speechSynthesis' in window) speechSynthesis.cancel(); clipPlayer.pause(); $('#play').textContent = '▶ Play'; }
 
 $('#play').onclick = () => { audio(); playing ? stopPlaying() : playFrom(step<0 || step>=STEPS.length-1 ? 0 : step); };
 $('#next').onclick = () => { audio(); stopPlaying(); goStep(step+1); };
@@ -788,7 +878,7 @@ $('#cmp-good').onclick = () => { audio(); seqToken++; $('#badge').textContent='�
 $('#cmp-bad').onclick  = () => { audio(); seqToken++; $('#badge').textContent='❌'; $('#badge').classList.add('show'); lesson.onBad(); };
 $('#voice-btn').onclick = () => { readAloud = !readAloud; if (!readAloud) speechSynthesis.cancel(); $('#voice-btn').textContent = '🔊 Read aloud: ' + (readAloud?'on':'off'); };
 { let holdT = null; const gb = $('#grown-btn');
-  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); renderVoices(); { const sel = $('#rate-sel'); let best = '1', d = 9; for (const o of sel.options){ const diff = Math.abs(parseFloat(o.value)-RATE); if (diff < d){ d = diff; best = o.value; } } sel.value = best; } $('#grown').classList.add('open'); }, 1500); };
+  const start = e => { e.preventDefault(); gb.textContent = 'ℹ️ Keep holding…'; holdT = setTimeout(() => { gb.textContent = 'ℹ️ Grown-ups (hold)'; stopPlaying(); $('#target-in').value = TARGET; renderHistory(); renderPhotoSlots(); renderVoices(); renderRecorder(); { const sel = $('#rate-sel'); let best = '1', d = 9; for (const o of sel.options){ const diff = Math.abs(parseFloat(o.value)-RATE); if (diff < d){ d = diff; best = o.value; } } sel.value = best; } $('#grown').classList.add('open'); }, 1500); };
   const stop = () => { clearTimeout(holdT); gb.textContent = 'ℹ️ Grown-ups (hold)'; };
   gb.addEventListener('pointerdown', start); gb.addEventListener('pointerup', stop); gb.addEventListener('pointerleave', stop); gb.addEventListener('pointercancel', stop); }
 $('#pack-in').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const pack = JSON.parse(await f.text()); let n = 0; for (const k in pack){ if (typeof pack[k]==='string' && pack[k].startsWith('data:image')){ STORED[k] = pack[k]; n++; } } if (savePhotos()){ renderPhotoSlots(); renderHomeFace(); if (!$('#ppanel').hidden) renderBody(); alert(n + ' photos added.'); } } catch(err){ alert('That file is not a photo pack.'); } };
